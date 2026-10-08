@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: oklch(0.97 0.02 250);
+  --color-brand-100: oklch(0.93 0.04 250);
+  --color-brand-500: oklch(0.58 0.16 255);
+  --color-brand-600: oklch(0.5 0.17 255);
+  --color-brand-700: oklch(0.42 0.16 255);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+}
+
+/* Cincin fokus yang konsisten untuk navigasi keyboard. */
+:focus-visible {
+  outline: 2px solid oklch(0.78 0.14 210);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Elemen `Reveal` dirender server pada state `hidden`, jadi inline
+ * `opacity: 0`. Aturan `<noscript>` di `layout.tsx` menutup kasus tanpa
+ * JavaScript, tapi tidak menutup kasus cetak: orang yang mencetak halaman
+ * tanpa menggulir lebih dulu akan mendapat section kosong di kertas.
+ *
+ * `transform: none` ikut dipaksa karena `translateY` sisa animasi juga akan
+ * membuat teks miring dari posisi aslinya.
+ */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
