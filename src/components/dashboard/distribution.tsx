@@ -21,13 +21,8 @@ export type DistributionBarsProps = {
 /**
  * Daftar bar horizontal untuk sebaran data.
  *
- * Dipakai untuk risiko, status, dan kategori. Bar dianimasikan lewat
- * `transition-[width]`, bukan Motion: yang berubah hanya satu nilai lebar CSS,
- * sehingga transisi CSS cukup dan tidak menambah animasi yang harus dihormati
- * `prefers-reduced-motion`.
- *
- * Lebar bar diambil langsung dari `percent` tanpa dianimasikan ulang saat data
- * berubah, karena `percent` sudah berupa bilangan bulat 0-100.
+ * Dipakai untuk risiko, status, dan kategori. Transform scaleX mengubah isi
+ * bar tanpa menghitung ulang layout. Reduced motion mengikuti CSS global.
  */
 export function DistributionBars({
   slices,
@@ -62,8 +57,8 @@ export function DistributionBars({
               aria-label={`${slice.label}: ${slice.count} tiket, ${slice.percent} persen`}
             >
               <div
-                className={`h-full rounded-full ${tone} transition-[width] duration-500`}
-                style={{ width: `${slice.percent}%` }}
+                className={`h-full w-full origin-left rounded-full ${tone} transition-transform duration-250 ease-out`}
+                style={{ transform: `scaleX(${slice.percent / 100})` }}
               />
             </div>
           </li>

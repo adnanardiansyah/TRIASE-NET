@@ -191,9 +191,9 @@ export type RevealProps = RevealElementProps & {
   from?: RevealFrom;
   /** Jeda sebelum animasi, dalam detik. Diabaikan di dalam `RevealGroup`. */
   delay?: number;
-  /** Durasi animasi, dalam detik. Default `0.6`. */
+  /** Durasi animasi, dalam detik. Default `0.3`. */
   duration?: number;
-  /** Jarak tempuh translate dalam px. Default `20`. */
+  /** Jarak tempuh translate dalam px. Default `10`. */
   distance?: number;
   /** Hanya sekali saat masuk viewport. Default `true`. */
   once?: boolean;
@@ -206,7 +206,7 @@ export type RevealProps = RevealElementProps & {
 
 export type RevealGroupProps = RevealElementProps & {
   as?: RevealTag;
-  /** Jeda antar anak, dalam detik. Default `0.08`. */
+  /** Jeda antar anak, dalam detik. Default `0.04`. */
   stagger?: number;
   /** Jeda sebelum anak pertama bergerak, dalam detik. Default `0`. */
   delay?: number;
@@ -261,8 +261,8 @@ export function Reveal({
   as = "div",
   from = "bottom",
   delay = 0,
-  duration = 0.6,
-  distance = 20,
+  duration = 0.3,
+  distance = 10,
   once = true,
   amount = 0.2,
   trigger = "viewport",
@@ -312,7 +312,7 @@ export function Reveal({
  */
 export function RevealGroup({
   as = "div",
-  stagger = 0.08,
+  stagger = 0.04,
   delay = 0,
   once = true,
   amount = 0.15,

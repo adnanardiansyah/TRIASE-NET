@@ -54,7 +54,7 @@ type Blob = ColumnType<Buffer, Buffer | Uint8Array, Buffer | Uint8Array>;
 export interface SchemaMigrationsTable {
   version: string;
   checksum: string;
-  applied_at: Generated<Timestamp>;
+  applied_at: Timestamp;
   applied_by: Generated<string>;
   execution_ms: Generated<number>;
 }
@@ -68,10 +68,10 @@ export interface KekVersionsTable {
   key_reference: ColumnType<string | null, string | null | undefined, never>;
   key_checksum: ColumnType<Buffer | null, Buffer | null | undefined, never>;
   status: Generated<KekStatus>;
-  activated_at: Generated<Timestamp>;
+  activated_at: Timestamp;
   retired_at: NullableTimestamp;
   retired_reason: ColumnType<string | null, string | null | undefined, never>;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   updated_at: Timestamp;
   row_version: Generated<number>;
 }
@@ -100,7 +100,7 @@ export interface UsersTable {
   last_login_network_zone: ColumnType<string | null, string | null | undefined, never>;
   password_changed_at: NullableTimestamp;
   row_version: Generated<number>;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   updated_at: Timestamp;
 }
 
@@ -131,7 +131,7 @@ export interface SatgasProfilesTable {
   approved_by: ColumnType<string | null, string | null | undefined, never>;
   approved_at: NullableTimestamp;
   expires_at: NullableTimestamp;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   updated_at: Timestamp;
   row_version: Generated<number>;
 }
@@ -145,7 +145,7 @@ export interface AduanTable {
   category: AduanCategory;
   submission_channel: Generated<SubmissionChannel>;
   status: Generated<AduanStatus>;
-  submitted_at: Generated<Timestamp>;
+  submitted_at: Timestamp;
   submitted_network_zone: ColumnType<string | null, string | null | undefined, never>;
   ztna_risk_score: Generated<number>;
   crypto_algorithm: CryptoAlgorithm;
@@ -167,7 +167,7 @@ export interface AduanTable {
   closed_at: NullableTimestamp;
   retention_expires_at: Timestamp;
   row_version: Generated<number>;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   updated_at: Timestamp;
 }
 
@@ -184,7 +184,7 @@ export interface AduanCryptoLayersTable {
   wrapped_dek_tag: Blob;
   kek_version: number;
   aad_context: string;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
 }
 
 export interface AduanAttachmentsTable {
@@ -213,9 +213,9 @@ export interface AduanAttachmentsTable {
   scan_signature: ColumnType<string | null, string | null | undefined, never>;
   uploaded_network_zone: ColumnType<string | null, string | null | undefined, never>;
   upload_risk_score: Generated<number>;
-  uploaded_at: Generated<Timestamp>;
+  uploaded_at: Timestamp;
   deleted_at: NullableTimestamp;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   updated_at: Timestamp;
   row_version: Generated<number>;
 }
@@ -233,7 +233,7 @@ export interface AduanStatusHistoryTable {
   /** Soft reference ke ztna_audit_logs (tabel dipartisi). */
   ztna_audit_id: string;
   trace_id: string;
-  changed_at: Generated<Timestamp>;
+  changed_at: Timestamp;
 }
 
 export interface ZtnaAuditLogsTable {
@@ -296,8 +296,8 @@ export interface ZtnaSessionsTable {
   revoked_reason: ColumnType<string | null, string | null | undefined, never>;
   source_ip: ColumnType<string | null, string | null | undefined, never>;
   source_ip_truncated: ColumnType<string | null, string | null | undefined, never>;
-  created_at: Generated<Timestamp>;
-  last_seen_at: Generated<Timestamp>;
+  created_at: Timestamp;
+  last_seen_at: Timestamp;
   expires_at: Timestamp;
 }
 
@@ -311,7 +311,7 @@ export interface RefreshTokensTable {
   generation: Generated<number>;
   replaced_by_id: ColumnType<string | null, string | null | undefined, never>;
   scopes: Generated<string[]>;
-  issued_at: Generated<Timestamp>;
+  issued_at: Timestamp;
   expires_at: Timestamp;
   used_at: NullableTimestamp;
   revoked_at: NullableTimestamp;
@@ -336,7 +336,7 @@ export interface MfaChallengesTable {
   consumed_at: NullableTimestamp;
   invalidated_at: NullableTimestamp;
   invalidated_reason: ColumnType<string | null, string | null | undefined, never>;
-  created_at: Generated<Timestamp>;
+  created_at: Timestamp;
   expires_at: Timestamp;
 }
 
@@ -353,6 +353,16 @@ export interface AduanRateLimitsTable {
  * Peta skema lengkap. Nama tabel adalah kunci; nilainya adalah interface baris.
  */
 export interface Database {
+  aduan_replies: {
+    id: string;
+    aduan_id: string;
+    author_role: AppRole;
+    author_pseudonym_id: string | null;
+    payload: Record<string, unknown>;
+    kek_version: number;
+    ztna_audit_id: string;
+    created_at: Timestamp;
+  };
   schema_migrations: SchemaMigrationsTable;
   kek_versions: KekVersionsTable;
   users: UsersTable;

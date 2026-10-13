@@ -40,11 +40,14 @@ async function connect(): Promise<Kysely<unknown>> {
   //
   // DATABASE_URL tetap diterima sebagai cadangan supaya alur lama tidak
   // langsung rusak, tetapi migrasi memberi peringatan.
-  const usingFallback = process.env.DATABASE_MIGRATION_URL === undefined;
+  const asAdmin = process.argv.includes("--admin");
+  const usingFallback = !asAdmin && process.env.DATABASE_MIGRATION_URL === undefined;
   const connectionString =
-    process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
+    asAdmin ? process.env.DATABASE_ADMIN_URL
+      : process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
 
   if (!connectionString) {
+    if (asAdmin) throw new Error("DATABASE_ADMIN_URL wajib diisi untuk migrasi --admin.");
     throw new Error(
       "DATABASE_MIGRATION_URL belum disetel.\n" +
         '  $env:DATABASE_MIGRATION_URL = "postgresql://triase_ddl_login:PASS@localhost:5432/triase_net"\n' +

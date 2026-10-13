@@ -20,7 +20,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = resolve(HERE, "..");
+const PROJECT_ROOT = resolve(HERE, "..", "..");
 
 const ENV_FILES = [".env.local", ".env"] as const;
 

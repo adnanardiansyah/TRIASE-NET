@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { assertSameOrigin } from "@/lib/api/validation";
+import { apiErrorResponse } from "@/lib/api/errors";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  try { assertSameOrigin(request); } catch (error) { return apiErrorResponse(error); }
   const response = NextResponse.json({ ok: true, message: "Logout berhasil." });
 
   response.cookies.set("triase-session", "", {

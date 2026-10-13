@@ -8,6 +8,9 @@ export interface SessionClaims {
   sub: string;
   role: SessionRole;
   email?: string;
+  userId?: string;
+  mfaVerifiedAt?: number;
+  deviceHash?: string;
   iat: number;
   exp: number;
 }
@@ -102,6 +105,16 @@ function parseClaims(payloadPart: string): SessionClaims {
 
   if (candidate.email !== undefined && typeof candidate.email !== "string") {
     throw new Error("Token sesi memiliki klaim email yang tidak valid.");
+  }
+
+  if (candidate.userId !== undefined && (typeof candidate.userId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate.userId))) {
+    throw new Error("Identitas sesi tidak valid.");
+  }
+  if (candidate.deviceHash !== undefined && (typeof candidate.deviceHash !== "string" || !/^[0-9a-f]{64}$/.test(candidate.deviceHash))) {
+    throw new Error("Perangkat sesi tidak valid.");
+  }
+  if (candidate.mfaVerifiedAt !== undefined && (!Number.isFinite(candidate.mfaVerifiedAt) || candidate.mfaVerifiedAt > Math.floor(Date.now() / 1000) + 30)) {
+    throw new Error("Waktu MFA tidak valid.");
   }
 
   return candidate as SessionClaims;

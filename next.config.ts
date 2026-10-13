@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 /**
  * Header keamanan.
@@ -39,7 +40,7 @@ const securityHeaders = [
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+    value: "camera=(), microphone=(), geolocation=()",
   },
   {
     key: "Strict-Transport-Security",
@@ -77,4 +78,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default function configureNext(phase: string): NextConfig {
+  return {
+    ...nextConfig,
+    // Keep production builds from overwriting a running development server's chunks.
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+  };
+}

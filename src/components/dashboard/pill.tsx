@@ -10,12 +10,12 @@ type Tone = "cyan" | "amber" | "emerald" | "rose" | "violet" | "slate";
  * hanya satu sisinya yang diubah.
  */
 const TONE_CLASS: Readonly<Record<Tone, string>> = {
-  cyan: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25",
-  amber: "bg-amber-400/10 text-amber-300 ring-amber-400/25",
-  emerald: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/25",
-  rose: "bg-rose-400/10 text-rose-300 ring-rose-400/25",
-  violet: "bg-violet-400/10 text-violet-300 ring-violet-400/25",
-  slate: "bg-slate-400/10 text-slate-300 ring-slate-400/25",
+  cyan: "bg-blue-50 text-blue-700 ring-blue-100",
+  amber: "bg-amber-50 text-amber-700 ring-amber-200/60",
+  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  rose: "bg-rose-50 text-rose-700 ring-rose-100",
+  violet: "bg-indigo-50 text-indigo-600 ring-indigo-100",
+  slate: "bg-zinc-100 text-zinc-600 ring-zinc-200",
 };
 
 /** Warna titik solid, untuk pil yang memakai penanda berbentuk titik. */
@@ -30,6 +30,9 @@ const DOT_CLASS: Readonly<Record<Tone, string>> = {
 
 const STATUS_TONE: Readonly<Record<string, Tone>> = {
   DALAM_PENANGANAN: "cyan",
+  DITERIMA: "violet",
+  DITUTUP: "slate",
+  DITOLAK: "rose",
   MENUNGGU_TINDAK_LANJUT: "amber",
   SELESAI: "emerald",
 };
@@ -84,7 +87,7 @@ export function MetaPill({ value, title }: { value: string; title?: ReactNode })
   return (
     <span
       title={typeof title === "string" ? title : undefined}
-      className="inline-flex max-w-full items-center rounded-md bg-slate-800/70 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-inset ring-slate-700/60"
+      className="inline-flex max-w-full items-center rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 ring-1 ring-inset ring-zinc-200"
     >
       <span className="truncate">{value}</span>
     </span>

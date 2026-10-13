@@ -112,7 +112,7 @@ describe("dashboard aggregates", () => {
   });
 
   it("formatTicketStatus mempertahankan status yang tidak dikenal", () => {
-    expect(formatTicketStatus("DITERIMA")).toBe("DITERIMA");
+    expect(formatTicketStatus("UNKNOWN")).toBe("UNKNOWN");
   });
 
   it("isSameCalendarDay membedakan tanggal", () => {
@@ -176,11 +176,11 @@ describe("metrik operasional", () => {
   it("buildStatusDistribution mempertahankan status di luar daftar known", () => {
     const result = buildStatusDistribution([
       ticket({ ticketId: "TR-1", status: "SELESAI" }),
-      ticket({ ticketId: "TR-2", status: "DITERIMA" }),
+      ticket({ ticketId: "TR-2", status: "UNKNOWN" }),
     ]);
 
-    expect(result.map((slice) => slice.key)).toEqual(["SELESAI", "DITERIMA"]);
-    expect(result[1]?.label).toBe("DITERIMA");
+    expect(result.map((slice) => slice.key)).toEqual(["SELESAI", "UNKNOWN"]);
+    expect(result[1]?.label).toBe("UNKNOWN");
   });
 
   it("buildCategoryDistribution mengurutkan dari yang paling banyak", () => {

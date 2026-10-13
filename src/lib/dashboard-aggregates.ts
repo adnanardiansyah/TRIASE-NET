@@ -5,6 +5,12 @@
  * yang sudah dipseudonimkan, tanpa email dan tanpa isi aduan, jadi tipe ini
  * juga mencegah halaman tersebut diam-diam kembali meminta field yang banned.
  */
+import { ADUAN_CLOSED_STATUS, type AduanStatus } from "./domain/enums";
+
+function isClosedStatus(status: string): boolean {
+  return ADUAN_CLOSED_STATUS.includes(status as AduanStatus);
+}
+
 export interface SummaryTicket {
   ticketId: string;
   subject: string;
@@ -19,6 +25,8 @@ export interface SummaryTicket {
    * selalu mengisinya. Fungsi yang memakainya harus menangani `undefined`.
    */
   category?: string;
+  rowVersion?: number;
+  closedAt?: string | null;
 }
 
 export type MahasiswaSummary = {
@@ -47,6 +55,12 @@ const UNKNOWN_BAND_WEIGHT = 50;
 
 export function formatTicketStatus(status: string): string {
   switch (status) {
+    case "DITERIMA":
+      return "Diterima";
+    case "DITUTUP":
+      return "Ditutup";
+    case "DITOLAK":
+      return "Ditolak";
     case "DALAM_PENANGANAN":
       return "Dalam penanganan";
     case "MENUNGGU_TINDAK_LANJUT":
@@ -107,7 +121,7 @@ export function isSameCalendarDay(isoValue: string, reference: Date): boolean {
 
 export function buildMahasiswaSummary(tickets: SummaryTicket[]): MahasiswaSummary {
   const ordered = sortNewestFirst(tickets);
-  const activeCount = ordered.filter((ticket) => ticket.status !== "SELESAI").length;
+  const activeCount = ordered.filter((ticket) => !isClosedStatus(ticket.status)).length;
   const latest = ordered[0];
   const averageRisk = ordered.length
     ? Math.round(
@@ -291,9 +305,12 @@ function toPercent(count: number, total: number): number {
 const RISK_ORDER: readonly string[] = ["HIGH", "MEDIUM", "LOW"];
 
 const STATUS_ORDER: readonly string[] = [
+  "DITERIMA",
   "DALAM_PENANGANAN",
   "MENUNGGU_TINDAK_LANJUT",
   "SELESAI",
+  "DITUTUP",
+  "DITOLAK",
 ];
 
 export function buildRiskDistribution(tickets: SummaryTicket[]): DistributionSlice[] {
@@ -379,7 +396,7 @@ export function buildSlaSummary(
   tickets: SummaryTicket[],
   now: Date = new Date(),
 ): SlaSummary {
-  const resolved = tickets.filter((ticket) => ticket.status === "SELESAI");
+  const resolved = tickets.filter((ticket) => ticket.status === "SELESAI" || ticket.status === "DITUTUP");
 
   let withinTarget = 0;
   let breached = 0;
@@ -387,7 +404,7 @@ export function buildSlaSummary(
 
   for (const ticket of resolved) {
     const created = new Date(ticket.createdAt).getTime();
-    const updated = new Date(ticket.updatedAt).getTime();
+    const updated = new Date(ticket.closedAt ?? ticket.updatedAt).getTime();
 
     if (!Number.isFinite(created) || !Number.isFinite(updated)) {
       continue;
@@ -403,7 +420,7 @@ export function buildSlaSummary(
   }
 
   for (const ticket of tickets) {
-    if (ticket.status === "SELESAI") {
+    if (isClosedStatus(ticket.status)) {
       continue;
     }
 
@@ -448,7 +465,7 @@ export function buildAverageResolution(tickets: SummaryTicket[]): number | null 
 
 /** Tiket terbuka tertua, untuk dipakai sebagai penanda antrean menumpuk. */
 export function findOldestOpenTicket(tickets: SummaryTicket[]): SummaryTicket | null {
-  const open = tickets.filter((ticket) => ticket.status !== "SELESAI");
+  const open = tickets.filter((ticket) => !isClosedStatus(ticket.status));
 
   if (open.length === 0) {
     return null;
@@ -473,7 +490,7 @@ export function buildSatgasSummary(
   tickets: SummaryTicket[],
   now: Date = new Date(),
 ): SatuanTugasSummary {
-  const open = tickets.filter((ticket) => ticket.status !== "SELESAI");
+  const open = tickets.filter((ticket) => !isClosedStatus(ticket.status));
   const highRiskOpen = open.filter((ticket) => ticket.riskBand === "HIGH");
   const waiting = tickets.filter((ticket) => ticket.status === "MENUNGGU_TINDAK_LANJUT");
   const averageResolution = buildAverageResolution(tickets);
@@ -570,7 +587,7 @@ function riskLabelForScore(score: number): string {
 export function buildMahasiswaDashboard(tickets: SummaryTicket[]): MahasiswaDashboard {
   const { cards } = buildMahasiswaSummary(tickets);
   const ordered = sortNewestFirst(tickets);
-  const open = ordered.filter((ticket) => ticket.status !== "SELESAI");
+  const open = ordered.filter((ticket) => !isClosedStatus(ticket.status));
   const waiting = ordered.filter((ticket) => ticket.status === "MENUNGGU_TINDAK_LANJUT");
   const closed = ordered.filter((ticket) => ticket.status === "SELESAI");
   const averageRisk = cards[3]?.value ?? "0 / 100";
@@ -612,7 +629,7 @@ export function buildMahasiswaDashboard(tickets: SummaryTicket[]): MahasiswaDash
       category: ticket.category ?? UNRESOLVED_CATEGORY,
       categoryLabel: formatTicketCategory(ticket.category),
       updatedLabel: formatRelativeTime(ticket.updatedAt),
-      isOpen: ticket.status !== "SELESAI",
+      isOpen: !isClosedStatus(ticket.status),
     })),
   };
 }

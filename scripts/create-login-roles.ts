@@ -123,6 +123,17 @@ function assertValidRoleName(name: string, label: string): void {
 }
 
 async function main(): Promise<void> {
+  const onlyIndex = process.argv.indexOf("--only");
+  const only = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : undefined;
+  if (onlyIndex >= 0 && !PAIRS.some((pair) => pair.login === only)) {
+    throw new Error(`Nilai --only harus salah satu dari: ${PAIRS.map((pair) => pair.login).join(", ")}`);
+  }
+  const selected = only ? PAIRS.filter((pair) => pair.login === only) : PAIRS;
+  for (const pair of selected) {
+    if ((process.env[pair.envVar]?.length ?? 0) < 16) {
+      throw new Error(`${pair.envVar} wajib diisi dengan password pilihan Anda (minimal 16 karakter).`);
+    }
+  }
   const connectionString = requireEnv(
     "DATABASE_ADMIN_URL",
     "koneksi admin (CREATEROLE) untuk membuat dan merotasi peran LOGIN",
@@ -164,7 +175,7 @@ async function main(): Promise<void> {
     const created: string[] = [];
     const rotated: string[] = [];
 
-    for (const pair of PAIRS) {
+    for (const pair of selected) {
       assertValidRoleName(pair.login, "Nama peran LOGIN");
 
       const password = process.env[pair.envVar];
@@ -245,7 +256,7 @@ async function main(): Promise<void> {
     process.stdout.write(
       `\nSelesai. ${created.length} peran dibuat, ${rotated.length} kata sandi dirotasi.\n` +
         `Isi nilai berikut di .env.local:\n` +
-        PAIRS.map(
+        selected.map(
           (p) =>
             `  ${p.urlVar} untuk ${p.purpose}: postgresql://${p.login}:<password>@localhost:5432/${currentDatabase}`,
         ).join("\n") +

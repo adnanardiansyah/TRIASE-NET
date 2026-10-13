@@ -1,15 +1,13 @@
 /**
  * Tipe dan konstanta tiket yang aman diimpor dari komponen klien.
  *
- * Modul ini sengaja tidak mengimpor apa pun: `demo-store` menarik
+ * Modul ini hanya mengimpor konstanta domain: `demo-store` menarik
  * `node:crypto` untuk enkripsi badan aduan, dan mengimpornya dari client
  * component akan membuat build gagal karena modul itu bukan untuk browser.
  */
-export const TICKET_STATUSES = [
-  "DALAM_PENANGANAN",
-  "MENUNGGU_TINDAK_LANJUT",
-  "SELESAI",
-] as const;
+import { ADUAN_STATUS } from "./domain/enums";
+
+export const TICKET_STATUSES = ADUAN_STATUS;
 
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
@@ -30,4 +28,6 @@ export interface TicketMetadata {
   status: TicketStatus;
   createdAt: string;
   updatedAt: string;
+  rowVersion?: number;
+  closedAt?: string | null;
 }

@@ -123,14 +123,11 @@ describe("environment server", () => {
     expect(() => assertProductionEnvIfNeeded()).toThrow(/Konfigurasi produksi tidak lengkap/);
   });
 
-  it("start produksi tidak mewajibkan DATABASE_URL untuk demo in-memory", () => {
+  it("start produksi mewajibkan DATABASE_URL untuk penyimpanan persisten", () => {
     vi.stubEnv("NODE_ENV", "production");
     setEnv({ DATABASE_URL: undefined });
 
-    // Demo tidak pernah menyentuh Postgres. Menuntut DATABASE_URL hanya akan
-    // membuat `next start` gagal start untuk konfigurasi yang sebenarnya sudah
-    // cukup, sementara jalur kriptografi dan sesinya sudah tervalidasi.
-    expect(() => assertProductionEnvIfNeeded()).not.toThrow();
+    expect(() => assertProductionEnvIfNeeded()).toThrow(/DATABASE_URL/);
   });
 
   it("start produksi menolak secret sesi yang pendek meski kunci valid", () => {

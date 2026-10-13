@@ -12,6 +12,10 @@ import {
 import { getRoleHomePath } from "@/lib/auth/guard";
 import { issueSessionToken, type SessionRole } from "@/lib/auth/jwt";
 import { verifyTotp } from "@/lib/auth/totp";
+import { apiErrorResponse } from "@/lib/api/errors";
+import { assertSameOrigin, loginSchema, readJson } from "@/lib/api/validation";
+import { resolveActorId } from "@/lib/db/actors";
+import { deviceHash } from "@/lib/ztna/access-policy";
 
 const SESSION_COOKIE = "triase-session";
 
@@ -69,6 +73,7 @@ interface Challenge {
   issuedAt: number;
   expiresAt: number;
   attempts: number;
+  deviceHash: string;
 }
 
 const challenges = new Map<string, Challenge>();
@@ -145,6 +150,13 @@ function unauthorized(message: string) {
  * dan penebakan enam digit jadi bebas.
  */
 export async function POST(request: NextRequest) {
+  try {
+    assertSameOrigin(request);
+    return await handleAuth(request);
+  } catch (error) { return apiErrorResponse(error); }
+}
+
+async function handleAuth(request: NextRequest) {
   // Akun di atas adalah akun demo dengan kata sandi dan seed TOTP yang
   // tertulis di source code. Menjalankannya di produksi berarti siapa pun
   // yang bisa membaca repo bisa masuk sebagai admin.
@@ -162,12 +174,12 @@ export async function POST(request: NextRequest) {
   const now = Date.now();
   sweepChallenges(now);
 
-  const body = (await request.json().catch(() => ({}))) as {
+  const body: {
     email?: string;
     password?: string;
     otp?: string;
     challengeId?: string;
-  };
+  } = await readJson(request, loginSchema, 4096);
 
   const ip = getClientIp(request);
   const email = body.email?.trim().toLowerCase() ?? "";
@@ -193,7 +205,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (challengeId) {
-    return finishMfa(challengeId, body.otp ?? "");
+    return finishMfa(challengeId, body.otp ?? "", request);
   }
 
   const user = findUser(email);
@@ -212,6 +224,7 @@ export async function POST(request: NextRequest) {
     issuedAt: now,
     expiresAt: now + CHALLENGE_WINDOW_MS,
     attempts: 0,
+    deviceHash: deviceHash(request.headers.get("user-agent") ?? ""),
   });
 
   return NextResponse.json({
@@ -222,10 +235,10 @@ export async function POST(request: NextRequest) {
   });
 }
 
-function finishMfa(challengeId: string, otp: string): NextResponse {
+async function finishMfa(challengeId: string, otp: string, request: NextRequest): Promise<NextResponse> {
   const challenge = challenges.get(challengeId);
 
-  if (!challenge) {
+  if (!challenge || challenge.expiresAt <= Date.now() || challenge.ip !== getClientIp(request) || challenge.deviceHash !== deviceHash(request.headers.get("user-agent") ?? "")) {
     return unauthorized("Sesi MFA tidak valid atau sudah berakhir.");
   }
 
@@ -247,10 +260,12 @@ function finishMfa(challengeId: string, otp: string): NextResponse {
     return unauthorized("Kode MFA tidak valid.");
   }
 
+  const userId = await resolveActorId(user.email, user.role);
+
   challenges.delete(challengeId);
 
   const token = issueSessionToken(
-    { sub: user.email, role: user.role, email: user.email },
+    { sub: user.email, role: user.role, email: user.email, userId, mfaVerifiedAt: Math.floor(Date.now() / 1000), deviceHash: challenge.deviceHash },
     SESSION_TTL_MINUTES,
   );
 

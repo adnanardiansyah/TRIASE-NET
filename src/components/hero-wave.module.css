@@ -1,0 +1,36 @@
+.waves {
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  z-index: 1;
+  height: var(--hero-wave-height);
+  color: var(--landing-divider-color);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.track {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: 200%;
+  height: 100%;
+  will-change: transform;
+  animation: drift-right 22s linear infinite;
+}
+
+.track svg {
+  display: block;
+  flex: 0 0 50%;
+  width: 50%;
+  height: 100%;
+}
+
+@keyframes drift-right {
+  from { transform: translate3d(-50%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track { animation: none !important; transform: none; will-change: auto; }
+}

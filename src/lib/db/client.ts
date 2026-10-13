@@ -11,6 +11,7 @@
  *      yang dilindungi RLS.
  */
 
+import "server-only";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool, type PoolConfig } from "pg";
 
@@ -49,11 +50,27 @@ function readConnectionConfig(): PoolConfig {
     ssl: useSsl ? { rejectUnauthorized: true } : undefined,
     // Nama aplikasi pada log koneksi agar mudah disaring.
     application_name: "triase-net-app",
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 15000,
   };
 }
 
 function createPool(): Pool {
-  return new Pool(readConnectionConfig());
+  return new Pool({
+    ...readConnectionConfig(),
+    verify: (client, done) => {
+      client.query<{ safe: boolean }>(`SELECT NOT rolsuper AND NOT rolbypassrls
+        AND NOT rolcreaterole AND pg_has_role(current_user, 'triase_app', 'MEMBER')
+        AND NOT pg_has_role(current_user, 'triase_migrator', 'MEMBER')
+        AND NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = 'public.aduan'::regclass
+          AND pg_has_role(current_user, relowner, 'USAGE')) AS safe
+        FROM pg_roles WHERE rolname = current_user`, (error, result) => {
+        if (error) return done(error);
+        if (!result.rows[0]?.safe) return done(new Error("DATABASE_URL harus memakai akun runtime non-superuser anggota triase_app."));
+        done();
+      });
+    },
+  });
 }
 
 /** Pool yang dipakai runtime. Dibuat sekali per proses. */
@@ -143,8 +160,8 @@ export async function closeDb(): Promise<void> {
     await globalThis.__triaseDb.destroy();
     globalThis.__triaseDb = undefined;
   }
-  if (globalThis.__triasePool) {
+  else if (globalThis.__triasePool) {
     await globalThis.__triasePool.end();
-    globalThis.__triasePool = undefined;
   }
+  globalThis.__triasePool = undefined;
 }

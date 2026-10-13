@@ -53,7 +53,7 @@ export default function RootLayout({
           <style>{`[data-reveal]{opacity:1!important;transform:none!important}`}</style>
         </noscript>
       </head>
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+      <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased">
         <MotionProvider>{children}</MotionProvider>
       </body>
     </html>

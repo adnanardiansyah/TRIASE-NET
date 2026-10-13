@@ -17,7 +17,7 @@ import { Reveal } from "@/components/reveal";
  */
 export default function Template({ children }: { children: React.ReactNode }) {
   return (
-    <Reveal trigger="mount" from="fade" duration={0.28}>
+    <Reveal trigger="mount" from="fade" duration={0.16}>
       {children}
     </Reveal>
   );

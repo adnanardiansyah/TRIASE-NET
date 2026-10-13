@@ -21,6 +21,7 @@ const eslintConfig = [
     // next-env.d.ts di-generate oleh Next.js, bukan kode milik kita.
     ignores: [
       ".next/**",
+      ".next-dev/**",
       "node_modules/**",
       "coverage/**",
       "next-env.d.ts",
