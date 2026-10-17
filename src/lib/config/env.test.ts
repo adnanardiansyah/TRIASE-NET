@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertProductionEnvIfNeeded, assertRiskThresholdsSane, getServerEnv } from "./env";
 const VALID_ENV = {
   DATABASE_URL: "postgresql://app:pw@localhost:5432/triase_net",
+  AUTH_ENCRYPTION_KEY_BASE64: randomBytes(32).toString("base64"),
   KEK_MASTER_BASE64: randomBytes(32).toString("base64"),
   KEK_HKDF_SALT_BASE64: randomBytes(32).toString("base64"),
   PSEUDONYM_HMAC_KEY_BASE64: randomBytes(32).toString("base64"),
@@ -112,7 +113,7 @@ describe("environment server", () => {
     vi.stubEnv("NODE_ENV", "development");
     clearEnvKeys();
 
-    // Demo in-memory harus tetap bisa jalan tanpa Postgres dan tanpa kunci.
+    // Validasi startup khusus produksi; modul autentikasi tetap menolak kunci yang hilang.
     expect(() => assertProductionEnvIfNeeded()).not.toThrow();
   });
 

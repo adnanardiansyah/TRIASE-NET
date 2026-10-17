@@ -65,9 +65,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["@node-rs/argon2", "pg", "nodemailer"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [{ source: "/:path*", headers: securityHeaders }, ...["/login", "/register", "/verifikasi", "/forgot-password", "/reset-password", "/admin/keamanan", "/satgas/keamanan"].map(source => ({source,headers:[{key:"Referrer-Policy",value:"no-referrer"},{key:"Cache-Control",value:"no-store"}]}))];
   },
   // Token otentikasi ZTNA hanya boleh melalui kanal aman dan dikodekan
   // server-side.

@@ -31,3 +31,18 @@ describe("dashboard workflows", () => {
     expect(summary.withinTarget).toBe(1);
   });
 });
+
+describe("analytics period in Jakarta", () => {
+  it("uses the same seven calendar dates as the chart at midnight", () => {
+    const now = Date.parse("2026-10-18T01:00:00+07:00");
+    const rows = [ticket({ ticketId: "inside", createdAt: "2026-10-12T00:00:00+07:00" }), ticket({ ticketId: "outside", createdAt: "2026-10-11T23:59:59+07:00" })];
+    expect(filterTickets(rows, { ...INITIAL_FILTERS, period: "7" }, now).map(row => row.ticketId)).toEqual(["inside"]);
+    const days = dailyTicketCounts(rows, new Date(now), 7);
+    expect(days[0]?.date).toBe("2026-10-12");
+    expect(days.reduce((total, day) => total + day.count, 0)).toBe(1);
+  });
+  it("generates thirty and ninety date buckets for selectable ranges", () => {
+    expect(dailyTicketCounts([], new Date("2026-10-18T10:00:00+07:00"), 30)).toHaveLength(30);
+    expect(dailyTicketCounts([], new Date("2026-10-18T10:00:00+07:00"), 90)).toHaveLength(90);
+  });
+});

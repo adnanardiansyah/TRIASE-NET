@@ -1,108 +1,28 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-
-/** Panjang standar RFC 6238. */
 export const TOTP_TIME_STEP_SECONDS = 30;
-
-/** Jumlah digit kode TOTP. */
 export const TOTP_DIGITS = 6;
-
-export function generateTotpSecret(): string {
-  return randomBytes(20).toString("hex");
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+export function encodeBase32(bytes: Buffer): string {
+  let bits = 0, value = 0, output = "";
+  for (const byte of bytes) { value = (value << 8) | byte; bits += 8; while (bits >= 5) { output += ALPHABET[(value >>> (bits - 5)) & 31]; bits -= 5; } }
+  if (bits) output += ALPHABET[(value << (5 - bits)) & 31];
+  return output;
 }
-
-function generateCounter(timestamp: number, timeStepSeconds: number): number {
-  return Math.floor(timestamp / 1000 / timeStepSeconds);
+function decodeBase32(secret: string): Buffer {
+  let bits = 0, value = 0; const output: number[] = [];
+  for (const char of secret.toUpperCase().replace(/=+$/, "")) { const index = ALPHABET.indexOf(char); if (index < 0) throw new Error("Invalid authenticator secret"); value = (value << 5) | index; bits += 5; if (bits >= 8) { output.push((value >>> (bits - 8)) & 255); bits -= 8; } }
+  return Buffer.from(output);
 }
-
-export function generateTotp(secret: string, timeStepSeconds = TOTP_TIME_STEP_SECONDS): string {
-  const counter = generateCounter(Date.now(), timeStepSeconds);
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeUInt32BE(0, 0);
-  counterBuffer.writeUInt32BE(counter, 4);
-
-  const hash = createHmac("sha1", secret)
-    .update(counterBuffer)
-    .digest();
-
-  const lastByte = hash[hash.length - 1];
-  if (lastByte === undefined) {
-    throw new Error("Gagal menghasilkan kode TOTP.");
-  }
-
-  const offset = lastByte & 0x0f;
-  const byte1 = hash[offset];
-  const byte2 = hash[offset + 1];
-  const byte3 = hash[offset + 2];
-  const byte4 = hash[offset + 3];
-
-  if (byte1 === undefined || byte2 === undefined || byte3 === undefined || byte4 === undefined) {
-    throw new Error("Gagal menghasilkan kode TOTP.");
-  }
-
-  const binary = ((byte1 & 0x7f) << 24) |
-    ((byte2 & 0xff) << 16) |
-    ((byte3 & 0xff) << 8) |
-    (byte4 & 0xff);
-
-  const otp = binary % 10 ** TOTP_DIGITS;
-  return String(otp).padStart(TOTP_DIGITS, "0");
+export function generateTotpSecret(): string { return encodeBase32(randomBytes(20)); }
+export function totpAt(secret: string, timestamp: number, step = 30, digits = 6): string {
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(timestamp / 1000 / step)));
+  const digest = createHmac("sha1", decodeBase32(secret)).update(counter).digest(); const offset = digest[digest.length - 1]! & 15;
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 10 ** digits).padStart(digits, "0");
 }
-
-export function verifyTotp(
-  secret: string,
-  candidate: string,
-  window = 1,
-  timeStepSeconds = TOTP_TIME_STEP_SECONDS,
-): boolean {
-  const normalized = candidate.replace(/\s+/g, "");
-  const isSixDigits = new RegExp(`^[0-9]{${TOTP_DIGITS}}$`).test(normalized);
-  const comparison = isSixDigits ? normalized : "";
-
-  if (!comparison) {
-    return false;
-  }
-
-  const stepMs = timeStepSeconds * 1000;
-
-  for (let offset = -window; offset <= window; offset += 1) {
-    const time = Date.now() + offset * stepMs;
-    const counter = Math.floor(time / 1000 / timeStepSeconds);
-    const counterBuffer = Buffer.alloc(8);
-    counterBuffer.writeUInt32BE(0, 0);
-    counterBuffer.writeUInt32BE(counter, 4);
-
-    const hash = createHmac("sha1", secret)
-      .update(counterBuffer)
-      .digest();
-
-    const lastByte = hash[hash.length - 1];
-    if (lastByte === undefined) {
-      continue;
-    }
-
-    const index = lastByte & 0x0f;
-    const byte1 = hash[index];
-    const byte2 = hash[index + 1];
-    const byte3 = hash[index + 2];
-    const byte4 = hash[index + 3];
-
-    if (byte1 === undefined || byte2 === undefined || byte3 === undefined || byte4 === undefined) {
-      continue;
-    }
-
-    const binary = ((byte1 & 0x7f) << 24) |
-      ((byte2 & 0xff) << 16) |
-      ((byte3 & 0xff) << 8) |
-      (byte4 & 0xff);
-
-    const otp = String(binary % 10 ** TOTP_DIGITS).padStart(TOTP_DIGITS, "0");
-    const expected = Buffer.from(otp, "utf8");
-    const actual = Buffer.from(comparison, "utf8");
-
-    if (timingSafeEqual(expected, actual)) {
-      return true;
-    }
-  }
-
-  return false;
+export function generateTotp(secret: string, step = 30): string { return totpAt(secret, Date.now(), step); }
+export function matchingTotpCounter(secret: string, candidate: string, timestamp = Date.now(), window = 1, step = 30): number | null {
+  if (!/^\d{6}$/.test(candidate)) return null;
+  for (let delta = -window; delta <= window; delta++) { const time = timestamp + delta * step * 1000; if (time < 0) continue; if (timingSafeEqual(Buffer.from(totpAt(secret, time, step)), Buffer.from(candidate))) return Math.floor(time / 1000 / step); }
+  return null;
 }
+export function verifyTotp(secret: string, candidate: string, window = 1, step = 30): boolean { return matchingTotpCounter(secret, candidate, Date.now(), window, step) !== null; }

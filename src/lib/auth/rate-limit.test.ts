@@ -1,85 +1,31 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
-import {
-  buildRateLimitKeys,
-  consumeRateLimit,
-  getClientIp,
-  resetRateLimit,
-  __resetRateLimits,
-} from "./rate-limit";
-
-describe("rate limit", () => {
-  beforeEach(() => {
-    __resetRateLimits();
-  });
-
-  afterEach(() => {
-    __resetRateLimits();
-  });
-
-  it("mengizinkan tepat `limit` percobaan lalu menolak", () => {
-    // `limit` adalah jumlah percobaan yang BOLEH dipakai dalam satu jendela,
-    // jadi dengan limit 3: panggilan 1-3 diizinkan, panggilan 4 ditolak.
-    const results = [1, 2, 3, 4].map(() => consumeRateLimit("kunci", 3, 60_000));
-
-    expect(results.map((result) => result.allowed)).toEqual([true, true, true, false]);
-    expect(results[0]?.remaining).toBe(2);
-    expect(results[2]?.remaining).toBe(0);
-    expect(results[3]?.remaining).toBe(0);
-  });
-
-  it("terus menghitung setelah limit terlampaui", () => {
-    for (let index = 0; index < 3; index += 1) {
-      consumeRateLimit("kunci", 3, 60_000);
-    }
-
-    // Percobaan setelah limit terlampaui tidak boleh membiarkan penghitung
-    // kembali ke bawah, sehingga penunggu tidak bisa memperpanjang blokir.
-    expect(consumeRateLimit("kunci", 3, 60_000).allowed).toBe(false);
-    expect(consumeRateLimit("kunci", 3, 60_000).allowed).toBe(false);
-  });
-
-  it("memisahkan penghitung antar kunci", () => {
-    for (let index = 0; index < 3; index += 1) {
-      consumeRateLimit("ip-a", 3, 60_000);
-    }
-
-    expect(consumeRateLimit("ip-a", 3, 60_000).allowed).toBe(false);
-    expect(consumeRateLimit("ip-b", 3, 60_000).allowed).toBe(true);
-  });
-
-  it("resetRateLimit mengosongkan penghitung", () => {
-    for (let index = 0; index < 3; index += 1) {
-      consumeRateLimit("kunci", 3, 60_000);
-    }
-
-    resetRateLimit("kunci");
-
-    expect(consumeRateLimit("kunci", 3, 60_000).allowed).toBe(true);
-  });
-
-  it("buildRateLimitKeys memisahkan IP dan identitas", () => {
-    expect(buildRateLimitKeys("1.2.3.4", "a@poltek.test")).toEqual([
-      "auth:ip:1.2.3.4",
-      "auth:identity:a@poltek.test",
-    ]);
-  });
-
-  it("getClientIp mengambil hop pertama dari X-Forwarded-For", () => {
-    const request = {
-      headers: {
-        get: (name: string) =>
-          name === "x-forwarded-for" ? "9.9.9.9, 8.8.8.8" : null,
-      },
-    };
-
-    expect(getClientIp(request)).toBe("9.9.9.9");
-  });
-
-  it("getClientIp jatuh ke X-Real-IP lalu ke unknown", () => {
-    expect(
-      getClientIp({ headers: { get: (name) => (name === "x-real-ip" ? "7.7.7.7" : null) } }),
-    ).toBe("7.7.7.7");
-    expect(getClientIp({ headers: { get: () => null } })).toBe("unknown");
-  });
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+const {query}=vi.hoisted(()=>({query:vi.fn()}));
+vi.mock("@/lib/db/client",()=>({getPool:()=>({query})}));
+import {buildRateLimitKeys,consumeRateLimit,enforceRateLimit,getClientIp} from "./rate-limit";
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("JWT_SIGNING_SECRET","test-secret-at-least-32-characters-long");vi.stubEnv("AUTH_TRUST_PROXY","");vi.stubEnv("VERCEL","");});
+afterEach(()=>vi.unstubAllEnvs());
+describe("central rate limit adapter",()=>{
+ it("uses a single atomic DB call with a keyed hash, never raw identity",async()=>{
+  query.mockResolvedValue({rows:[{result:{allowed:false,remaining:0,retryAfterSeconds:30}}]});
+  expect((await consumeRateLimit("email:person@example.test",5,60000)).allowed).toBe(false);
+  expect(query.mock.calls[0]![0]).toContain("fn_auth_rate_limit");
+  expect(query.mock.calls[0]![1]).toEqual([expect.stringMatching(/^[0-9a-f]{64}$/),5,60000]);
+  expect(JSON.stringify(query.mock.calls)).not.toContain("person@example.test");
+ });
+ it("consumes both IP and identity budgets even when one is blocked",async()=>{
+  query.mockResolvedValue({rows:[{result:{allowed:false,remaining:0,retryAfterSeconds:30}}]});
+  await expect(enforceRateLimit("login","1.2.3.4","a@example.test")).rejects.toMatchObject({status:429});
+  expect(query).toHaveBeenCalledTimes(2);
+ });
+ it("fails closed when centralized storage is unavailable",async()=>{
+  query.mockRejectedValue(new Error("Unavailable"));await expect(consumeRateLimit("x",5,60000)).rejects.toThrow();
+ });
+ it("normalizes account identity",()=>{expect(buildRateLimitKeys("ip"," A@EXAMPLE.TEST ")[1]).toBe("auth:identity:a@example.test");});
+ it("ignores spoofed proxy headers unless explicitly trusted",()=>{
+  const r={headers:new Headers({"x-forwarded-for":"1.2.3.4","x-vercel-forwarded-for":"5.6.7.8"})};
+  expect(getClientIp(r)).toBe("unknown");vi.stubEnv("AUTH_TRUST_PROXY","vercel");expect(getClientIp(r)).toBe("unknown");vi.stubEnv("VERCEL","1");expect(getClientIp(r)).toBe("5.6.7.8");vi.stubEnv("AUTH_TRUST_PROXY","forwarded");expect(getClientIp(r)).toBe("1.2.3.4");
+ });
+ it("collapses invalid and missing addresses into a restrictive shared bucket",()=>{
+  vi.stubEnv("AUTH_TRUST_PROXY","forwarded");expect(getClientIp({headers:new Headers({"x-forwarded-for":"made-up"})})).toBe("unknown");
+ });
 });

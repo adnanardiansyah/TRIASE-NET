@@ -195,6 +195,8 @@ export type RevealProps = RevealElementProps & {
   duration?: number;
   /** Jarak tempuh translate dalam px. Default `10`. */
   distance?: number;
+  /** Optional small blur for a short hero entrance; defaults to no filter. */
+  blur?: number;
   /** Hanya sekali saat masuk viewport. Default `true`. */
   once?: boolean;
   /** Porsi elemen yang harus terlihat sebelum memicu. Default `0.2`. */
@@ -206,6 +208,7 @@ export type RevealProps = RevealElementProps & {
 
 export type RevealGroupProps = RevealElementProps & {
   as?: RevealTag;
+  trigger?: RevealTrigger;
   /** Jeda antar anak, dalam detik. Default `0.04`. */
   stagger?: number;
   /** Jeda sebelum anak pertama bergerak, dalam detik. Default `0`. */
@@ -263,6 +266,7 @@ export function Reveal({
   delay = 0,
   duration = 0.3,
   distance = 10,
+  blur = 0,
   once = true,
   amount = 0.2,
   trigger = "viewport",
@@ -275,13 +279,15 @@ export function Reveal({
   const variants = useMemo<Variants>(() => {
     const transition = reduceMotion
       ? { duration: 0, ease: EASE_OUT }
-      : { duration, delay, ease: EASE_OUT };
+      // An explicit child delay (even zero) overrides Motion's group delay.
+      // Leave it unset inside groups so delayChildren/staggerChildren can work.
+      : { duration, ...(insideGroup ? {} : { delay }), ease: EASE_OUT };
 
     return {
-      hidden: buildHiddenState(from, distance),
-      visible: buildVisibleState(from, transition),
+      hidden: { ...buildHiddenState(from, distance), ...(blur > 0 ? { filter: `blur(${blur}px)` } : {}) },
+      visible: { ...buildVisibleState(from, transition), ...(blur > 0 ? { filter: "blur(0px)" } : {}) },
     };
-  }, [from, distance, duration, delay, reduceMotion]);
+  }, [from, distance, duration, delay, blur, reduceMotion, insideGroup]);
 
   const Component = COMPONENTS[as];
 
@@ -312,6 +318,7 @@ export function Reveal({
  */
 export function RevealGroup({
   as = "div",
+  trigger = "viewport",
   stagger = 0.04,
   delay = 0,
   once = true,
@@ -342,8 +349,7 @@ export function RevealGroup({
         data-reveal=""
         variants={variants}
         initial="hidden"
-        whileInView="visible"
-        viewport={{ once, amount }}
+        {...(trigger === "mount" ? { animate: "visible" } : { whileInView: "visible", viewport: { once, amount } })}
         {...rest}
       >
         {children}

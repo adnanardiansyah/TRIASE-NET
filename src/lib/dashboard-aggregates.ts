@@ -6,6 +6,8 @@
  * juga mencegah halaman tersebut diam-diam kembali meminta field yang banned.
  */
 import { ADUAN_CLOSED_STATUS, type AduanStatus } from "./domain/enums";
+import { SLA_TARGET_DAYS } from "./ticket-sla";
+export { SLA_TARGET_DAYS } from "./ticket-sla";
 
 function isClosedStatus(status: string): boolean {
   return ADUAN_CLOSED_STATUS.includes(status as AduanStatus);
@@ -188,11 +190,7 @@ const DAY_MS = 86_400_000;
  * makin cepat tiket harus selesai. Nilainya hanya untuk ringkasan dasbor dan
  * tidak ikut memengaruhi keputusan akses, enkripsi, atau akses dekripsi.
  */
-export const SLA_TARGET_DAYS: Readonly<Record<string, number>> = {
-  HIGH: 3,
-  MEDIUM: 7,
-  LOW: 14,
-};
+
 
 /** Ambang yang dipakai saat band risiko tidak dikenal. */
 const UNKNOWN_SLA_TARGET_DAYS = 7;

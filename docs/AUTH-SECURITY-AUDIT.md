@@ -1,0 +1,102 @@
+# Audit dan hardening autentikasi TRIASE-Net
+
+Tanggal: 18 Oktober 2026. Pemeriksaan source code, migrasi, tes HTTP, dan PostgreSQL terisolasi. Ini persiapan uji staging, bukan sertifikasi penetration test atau persetujuan deployment production.
+
+Pada tahap audit awal, tidak ada migrasi baru yang diterapkan ke database aplikasi. Setelah persetujuan pemilik, migrasi 0042?0045 sudah diterapkan ke database lokal; lihat pembaruan operasional di bawah. Tidak ada akun nyata dibuat, diubah, atau disalin. Kunci enkripsi existing tidak diganti. QA hanya menyalin skema lokal ke database sementara, mengisi data sintetis, kemudian menghapus database sementara tersebut. Landing page dan business logic aduan tidak diubah dalam pekerjaan ini.
+
+## Temuan berdasarkan risiko
+
+| Risiko | Temuan pada implementasi awal | Penanganan / keadaan akhir |
+|---|---|---|
+| Critical, bersyarat pada tooling | Audit npm awal mencatat dua dependency berlabel Critical dalam rantai Vitest lama, termasuk server UI yang terekspos dan gadget worker. Ini bukan bukti bypass autentikasi production. | Vitest diperbarui dari 2 ke 4.1.11. Audit akhir tidak mencatat Critical. Tidak ditemukan jalur Critical pada autentikasi HTTP melalui pemeriksaan ini. |
+| High | `rate-limit.ts` memakai `Map` lokal. Banyak instance memberi banyak anggaran percobaan. | Diganti PostgreSQL `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` atomik. Tidak ada fallback memori. Kegagalan database menolak operasi. |
+| High | `getClientIp()` mempercayai `x-forwarded-for` / `x-real-ip` tanpa konfigurasi ingress. | Default mengabaikan header. Mode Vercel membutuhkan `AUTH_TRUST_PROXY=vercel` dan `VERCEL=1`; proxy sendiri wajib menimpa header dan menutup akses langsung ke origin. Identitas akun tetap dibatasi terpisah. |
+| Medium | Finalisasi MFA sebelumnya belum memeriksa ulang semua status terkunci dan memungkinkan tantangan enrollment bersamaan memakai versi kredensial yang sama. Pemanggilan SQL internal dengan nilai null juga kurang ketat. | Login/challenge/finalisasi/step-up memeriksa status dan versi. Enrollment pertama dan pengaitan ulang menaikkan versi, menghapus tantangan lain, dan mengganti recovery code secara atomik. `validate` memakai `IS DISTINCT FROM`. |
+| Medium | Token JWT belum terikat issuer/audience; logout hanya menghapus cookie di browser. | Validasi HS256, `typ`, issuer, audience, waktu finite, batas empat jam, dan waktu penerbitan. Logout menaikkan versi kredensial; semua sesi akun dicabut. Halaman login tetap dapat dibuka dengan cookie yang sudah dicabut. |
+| Medium | Pemeriksaan CSRF menerima permintaan tanpa `Origin`. JSON dan SameSite membantu membatasi eksploitasi, tetapi pengecekan asal belum tegas. | Semua mutasi terkait mensyaratkan Origin yang sama dengan alamat aplikasi terpercaya dan menolak `Sec-Fetch-Site: cross-site`. Worker memakai bearer secret independen, bukan cookie. |
+| Medium | Tidak tersedia pemulihan password atau faktor kedua. Akun yang kehilangan akses dapat terkunci tanpa prosedur aman. | Reset password satu kali, token hash, 30 menit, akun harus sudah aktif dan terverifikasi. Recovery MFA membutuhkan password, recovery code, lalu TOTP baru; tidak menghasilkan sesi dashboard hanya dengan recovery code. |
+| Medium | Resend/register memanggil SMTP langsung hanya untuk akun yang memenuhi syarat. Kegagalan SMTP atau perbedaan latensi dapat mengungkap keadaan akun. | Respons publik generik; job email terenkripsi ditulis dalam transaksi yang sama dengan token. SMTP berlangsung di worker terpisah. Tidak ada perbedaan status HTTP karena pengiriman SMTP khusus satu akun. Ini tidak menjanjikan waktu respons database identik secara matematis. |
+| Medium | TLS PostgreSQL remote bersifat opsional, dan pool default sepuluh koneksi per instance berisiko pada serverless. | Remote production wajib TLS terverifikasi. Pool global, default tiga pada Vercel, idle timeout, timeout query/transaksi, penanganan pool error, dan `attachDatabasePool`. Endpoint pooler tetap harus disediakan operator. |
+| Medium | Startup belum memvalidasi `AUTH_ENCRYPTION_KEY_BASE64`; pola gitignore belum mencakup seluruh `.env.*`. | Startup production mewajibkan kunci base64 kanonis 32 byte; modul kredensial `server-only`; seluruh `.env*` diabaikan kecuali contoh. Tidak ada kunci diganti atau nilainya dicetak. |
+| Low | Timeout SMTP belum membatasi seluruh durasi pengiriman; halaman tautan memakai kebijakan referrer umum. | TLS/STARTTLS wajib, sertifikat diverifikasi, timeout DNS/koneksi/greeting/socket, deadline total 12 detik, transport selalu ditutup. Halaman akun mendapat `no-referrer`; respons API sensitif `no-store`. |
+| High, tersisa pada development | Lima advisori npm berada pada rantai `eslint-config-next → fast-glob → micromatch → braces`. Versi `braces` terbaru yang diperiksa masih terpengaruh. | Tidak ada perbaikan upstream kompatibel yang diterapkan. Jangan menjalankan lint terhadap pola/kode tidak terpercaya dengan secret CI, jangan mengekspos tooling development, dan pantau patch upstream. Tidak melakukan downgrade Next atau `audit fix --force`. |
+| Medium, tersisa sebagai pertahanan XSS | CSP existing masih mengizinkan `script-src 'unsafe-inline'` untuk payload Next/RSC. | Tidak ada injeksi XSS yang dibuktikan dalam audit ini. CSP berbasis nonce perlu pekerjaan terpisah dengan uji rendering/caching. Cookie HttpOnly tidak melindungi aksi dari XSS yang berjalan dalam origin. |
+
+## Pemeriksaan sepuluh area
+
+1. **Password** — `src/lib/auth/real-accounts.ts`: Argon2id, memory 19.456 KiB, time cost 2, parallelism 1; verifikasi melalui library, tanpa pembanding plaintext. Akun tidak dikenal memakai dummy hash. Password baru minimal 12, maksimal 128 karakter; password lama tetap dapat login. Tidak ada pemeriksaan daftar password bocor dalam lingkup ini.
+2. **Token verifikasi/undangan** — 32 byte CSPRNG, base64url, SHA-256 di PostgreSQL, masa berlaku 30 menit, dipakai melalui POST. Pengiriman ulang membatalkan token sebelumnya. Fragmen URL dibersihkan sesudah dibaca browser; scanner GET tidak mengaktifkan akun. Token pengiriman berada terenkripsi dalam outbox; jangan mengaktifkan logging parameter SQL.
+3. **Sesi/cookie** — cookie host-only, HttpOnly, SameSite=Lax, Secure dalam production, path `/`, empat jam. API memvalidasi status akun dan versi dari PostgreSQL. Pengecekan middleware hanya membantu navigasi dan bukan batas otorisasi data. Perubahan password, logout, penonaktifan, dan pengaitan ulang MFA membatalkan sesi lama melalui versi kredensial.
+4. **CSRF** — `assertSameOrigin()` menggunakan origin konfigurasi, menolak Origin kosong/asing dan fetch cross-site. Tetap menggunakan JSON ketat, batas ukuran body, cookie SameSite, dan tidak menyediakan CORS permisif. Klien API sendiri harus menyertakan Origin yang benar pada mutasi.
+5. **MFA** — Base32/HMAC-SHA1 TOTP standar, enam digit, periode 30 detik, toleransi satu periode. Secret AES-256-GCM dengan IV acak dan AAD terikat user. Kode yang sudah dipakai ditolak melalui counter global per akun. Tantangan lima menit, maksimal lima pembacaan percobaan, terikat IP/perangkat dan versi. Operasi sensitif mempertahankan MFA freshness 15 menit.
+6. **RBAC** — role registrasi selalu MAHASISWA; undangan selalu SATGAS. Payload client tidak boleh memilih role. Admin divalidasi di API dan SQL. Tabel kredensial/token/recovery/outbox tidak dapat dibaca langsung oleh runtime; akses hanya fungsi SECURITY DEFINER dengan search_path tetap dan grant terpilih. Runtime database adalah backend terpercaya, bukan kredensial yang boleh dibagikan ke browser.
+7. **Mandat** — pembacaan/dekripsi aduan tetap mensyaratkan ON_DUTY, masa berlaku, kategori, batas risiko, dan versi KEK. Pemulihan autentikasi tidak menaikkan mandat. Admin tidak dapat memberi kategori/risiko/masa berlaku di luar mandatnya. Keamanan akun sendiri tetap dapat dikelola petugas yang tidak sedang bertugas.
+8. **Rate limit** — PostgreSQL terpusat; key disimpan sebagai HMAC, bukan IP/email mentah. Login membatasi IP dan identitas; registrasi/resend membatasi IP dan email; reset membatasi IP/email/token; verifikasi, step-up, recovery-code rotation, dan pengelolaan Admin juga memakai penyimpanan bersama. Penghitung tidak dihapus saat login berhasil. Fixed window tetap memiliki kemungkinan burst pada batas dua jendela; angka perlu dikalibrasi di staging.
+9. **SMTP** — verifikasi TLS aktif, tidak mengizinkan sertifikat tidak sah, tidak mencetak debug/payload. Origin link berasal dari konfigurasi, bukan Host/header pengguna. Partial SMTP credentials ditolak. Pengiriman nyata belum diuji karena layanan SMTP belum tersedia.
+10. **Kunci** — `AUTH_ENCRYPTION_KEY_BASE64` tetap existing. Pada hosting, gunakan environment server yang dilindungi secret manager; jangan memakai prefix `NEXT_PUBLIC_`. Cadangkan melalui jalur terbatas. Secret manager/KMS, pembatasan akses tim, dan rotasi terversi memerlukan konfigurasi operator. Merotasi kunci tanpa migrasi ciphertext akan merusak TOTP dan job email yang masih menunggu.
+
+## Pemulihan password
+
+`/forgot-password` → POST `/api/auth/forgot-password` → antrean email → `/reset-password#token=...` → POST `/api/auth/reset-password`.
+
+Hanya akun ACTIVE dengan email terverifikasi dan kredensial nyata yang mendapat token. Respons akun tidak dikenal, belum terverifikasi, dan memenuhi syarat sama. Token reset mempunyai versi kredensial; pengiriman ulang menghabiskan token lama, dan pemakaian bersamaan hanya berhasil sekali. Perubahan password, kenaikan versi, pembatalan token, penghapusan tantangan login, dan audit dilakukan dalam satu transaksi. Reset tidak login otomatis, tidak mengaktifkan akun pending/suspended, tidak menghapus TOTP, dan tidak membuat akun demo dapat login.
+
+## Pemulihan MFA
+
+Enrollment pertama menampilkan sepuluh kode CSPRNG, masing-masing 128 bit, satu kali sesudah TOTP berhasil. Database menyimpan hash SHA-256 dengan pemisah domain, bukan kode asli. Pemilik akun lama dapat membuat set awal atau mengganti seluruh kode melalui **Keamanan akun** di sidebar Admin/Satgas, dengan password, TOTP yang belum dipakai, dan sesi MFA masih baru.
+
+Jika autentikator hilang: masukkan email/password → pilih recovery code pada langkah MFA → pakai satu kode → sesi lama dicabut → hubungkan autentikator baru → verifikasi TOTP baru → simpan set recovery code baru → dashboard. Recovery code tidak diterima untuk step-up/dekripsi. Kode yang dipakai tetap hangus walaupun proses pengaitan ulang dibatalkan. Jika semua kode dan autentikator hilang, belum ada jalur bantuan manual yang melewati MFA; prosedur identitas di luar aplikasi perlu ditentukan operator.
+
+Penggunaan recovery, enrollment, pengaitan ulang, rotasi kode, reset password, dan logout tercatat pada `auth_security_events` append-only. Pemilik melihat riwayat sendiri; Admin dengan mandat aktif melihat gabungan audit keamanan dan pengelolaan akun di **Audit akun**. Log tidak berisi password, token, recovery code, atau secret TOTP.
+
+## Database dan file
+
+Migrasi baru yang harus diterapkan berurutan:
+
+| Migrasi | Perubahan |
+|---|---|
+| `0042_central_auth_rate_limits.sql` | Tabel counter, indeks expiry, fungsi UPSERT atomik, grant eksekusi terbatas. |
+| `0043_auth_recovery_and_mail_outbox.sql` | Token reset, hash recovery code, flag recovery challenge, audit append-only, outbox terenkripsi, indeks, pembaruan fungsi auth. Tidak mengubah ciphertext/credential existing. |
+| `0044_auth_mail_delivery.sql` | Claim job dengan SKIP LOCKED, lease, acknowledgement, retry, cleanup, dan riwayat keamanan pribadi. |
+| `0045_admin_invitation_outbox.sql` | Undangan dan outbox atomik, audit Admin mencakup peristiwa keamanan. |
+
+File utama: `src/lib/auth/{rate-limit,recovery,email,mail-outbox,real-accounts,jwt,schemas}.ts`; route auth recovery/logout dan `/api/internal/auth-mail`; `src/lib/api/validation.ts`; `src/lib/db/client.ts`; `src/lib/config/env.ts`; middleware/config Next; komponen dan halaman pemulihan/keamanan akun; `.env.example`, `.gitignore`, manifest/lockfile; tes baru dan `scripts/qa-auth-hardening.mjs`, `scripts/check-auth-production.mjs`. Tidak ada migrasi lama yang diubah.
+
+Retensi: counter expired dibersihkan secara terbatas saat request dan oleh worker setelah satu hari; token email/reset serta outbox setelah expiry/delivery lebih dari satu hari; tantangan expired dibersihkan; recovery code lama diganti atomik saat regenerasi. Audit keamanan sengaja tidak dihapus otomatis; operator perlu menetapkan kebijakan arsip/retensi. Jadwal worker harus aktif agar cleanup yang dijadwalkan berjalan; monitor antrean tertua, attempts, failure count, dan volume tabel.
+
+## Production dan Vercel
+
+- Gunakan Node.js runtime; route auth dan worker eksplisit `nodejs`, middleware mengikuti konfigurasi Node stabil Next 15.5. Jangan memindahkan pg/Argon2/Nodemailer ke Edge. Node 24 digunakan untuk QA lokal; jalankan build Linux/Node yang sama dengan target di CI, termasuk optional native binaries Argon2.
+- Pool global tetap terbatas per instance, bukan batas seluruh deployment. Gunakan endpoint pooler provider untuk runtime, pool kecil, region dekat database, serta perhitungan koneksi maksimum berdasarkan concurrency. Periksa kompatibilitas transaksi, RLS, SECURITY DEFINER dan role provider. URL runtime harus non-superuser dan tidak mewarisi migrator/owner tabel. Verifikasi runtime existing menolak hak berlebihan.
+- Gunakan koneksi langsung dengan pemilik fungsi untuk migrasi. Pada instalasi ini fungsi existing dibuat lewat admin; role migrasi biasa belum tentu berhak CREATE OR REPLACE fungsi tersebut. Jangan memberi runtime hak DDL sebagai solusi.
+- `AUTH_TRUST_PROXY=vercel` membutuhkan ingress Vercel; `forwarded` hanya untuk reverse proxy sendiri yang menimpa XFF dan melarang akses langsung. Jika header tidak tersedia, bucket `unknown` membatasi semua request bersama—aman terhadap spoofing, tetapi dapat mengganggu ketersediaan. Uji konfigurasi sebelum menerima pengguna.
+- Worker GET `/api/internal/auth-mail` memerlukan `Authorization: Bearer <CRON_SECRET>` independen minimal 32 karakter. Tanpa secret yang benar, worker tidak menyentuh database. Jangan meletakkan secret di URL. `vercel.cron.example.json` adalah contoh yang tidak diaktifkan otomatis; pilih scheduler yang mendukung frekuensi minimal satu menit. Pastikan paket hosting mendukung jadwal tersebut; jadwal sekali sehari tidak memadai untuk token 30 menit.
+- Per pemanggilan, worker mengklaim maksimal dua job dengan lease dua menit, retry maksimal lima kali dengan backoff, dan berhenti mengklaim job expired. Banyak worker dapat bekerja bersama. At-least-once delivery berarti email dapat terkirim dua kali jika provider menerima email tetapi acknowledgement database gagal; token tetap hanya sekali pakai. Kapasitas scheduler harus diuji terhadap volume mahasiswa, bukan diasumsikan cukup.
+- Jangan memasang `DATABASE_ADMIN_URL` atau `DATABASE_MIGRATION_URL` pada environment runtime Vercel. Pisahkan database, domain, secret, dan SMTP preview/staging dari production. Cookie production Secure membutuhkan HTTPS. Origin preview harus dikonfigurasi tepat, tanpa wildcard.
+
+## Urutan sebelum deployment
+
+1. Review migrasi dan cadangan database/secret. Dapatkan persetujuan pemilik sebelum menjalankan migrasi pada database berisi akun nyata atau production. Kode baru membutuhkan skema baru: jadwalkan maintenance untuk menerapkan migrasi dan deployment bersama; jangan menjalankan kode baru terhadap skema 0041.
+2. Siapkan database staging terisolasi, role runtime terbatas, endpoint pooler dan TLS. Terapkan 0042–0045 melalui runner existing setelah 0041. Untuk fungsi milik admin: `npm run db:migrate -- --admin`, dengan kredensial admin hanya pada terminal/runner migrasi. Runner memeriksa checksum dan membungkus setiap file dalam transaksi.
+3. Isi SMTP, pengirim terotorisasi, `NEXT_PUBLIC_APP_URL` HTTPS, issuer/audience, `AUTH_TRUST_PROXY`, `CRON_SECRET`, URL runtime, pool kecil dan TLS di secret manager. Pertahankan `AUTH_ENCRYPTION_KEY_BASE64`, JWT/KEK/pseudonym keys existing sesuai lingkungan; jangan menyalin secret production ke preview atau chat. Jalankan `npm run security:preflight` pada environment deployment. Preflight hanya memeriksa bentuk konfigurasi, bukan konektivitas/delivery.
+4. Aktifkan worker terautentikasi, verifikasi koneksi SMTP/TLS, penerimaan inbox/spam, retry/expiry, serta kapasitas. Periksa SPF/DKIM/DMARC pengirim melalui penyedia. Tidak ada provider email atau jadwal production yang dipasang dalam pekerjaan ini.
+5. Jalankan seluruh verifikasi di bawah pada staging. Uji dengan akun uji milik operator: registrasi/email, login mahasiswa, reset, enrollment/rotation/recovery petugas, mandat expired/OFF_DUTY, logout semua perangkat dan sesi lama. Jangan memakai seed demo. Perubahan token issuer/audience akan meminta sesi lama login ulang.
+6. Setelah uji staging dan penanganan risiko tersisa disetujui, lakukan migrasi/deployment production dengan persetujuan terpisah. Rollback kode lama tidak kompatibel penuh dengan outbox baru; utamakan perbaikan maju dan maintenance, bukan menghapus tabel/kunci/recovery material.
+
+## Bukti verifikasi
+
+`npm test`: **205 lulus**, **9 dilewati** (integrasi aduan opt-in). `npm run typecheck`, `npm run lint`, dan `npm run build`: **lulus**. Smoke HTTP production lokal: login/forgot/reset 200 dengan no-referrer, worker tanpa bearer 401, mutasi tanpa Origin 403, API Admin tanpa sesi 401. Tes unit mencakup RFC TOTP, AES/AAD, Argon2id, rate-limit adapter fail-closed, CSRF, generic reset, recovery challenge tanpa sesi dashboard, JWT issuer/audience, serta TLS dan timeout SMTP dengan transport mock.
+
+`npm run test:auth:db` menggunakan schema-only dump lokal dan database sementara, menerapkan empat migrasi baru, kemudian memeriksa single-use token, reset bersamaan, versi sesi, enrollment/recovery/replay, privilege tabel rahasia, audit immutable dan terpusat, 24 permintaan limit bersamaan, expiry counter, serta claim email bersamaan. Tidak mengirim email. Tes integrasi aduan existing tetap opt-in untuk database terisolasi.
+
+Audit npm akhir: dependency production **0 advisori**; keseluruhan proyek **5 High pada tooling lint**, **0 Critical**. Angka ini adalah hasil registry saat pemeriksaan, bukan jaminan tidak ada kerentanan. Pengiriman SMTP nyata, beban banyak instance di Vercel, Linux native packaging, dan konfigurasi secret manager masih harus diuji di staging.
+
+Referensi primer: [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html), [OWASP MFA](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html), [Vercel request headers](https://vercel.com/docs/headers/request-headers), [Vercel pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [Next 15 middleware Node runtime](https://nextjs.org/docs/15/app/api-reference/file-conventions/middleware), [Nodemailer SMTP](https://nodemailer.com/smtp), [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
+
+Preflight environment lokal saat pemeriksaan **belum lulus**: perlu `CRON_SECRET`, SMTP host/pengirim, origin HTTPS, database production/TLS, dan mode proxy. Ini bukan kegagalan tes unit atau alasan mengisi credential palsu. Query metadata read-only memastikan **0 migrasi 0042+** diterapkan ke database existing dan **0 database QA sementara** tertinggal.
+
+## Pembaruan operasional setelah persetujuan pemilik
+
+Migrasi 0042?0045 sudah diterapkan melalui runner checksum/transaksi ke database lokal setelah pemilik menyetujui. Seluruh kunci existing tetap dipertahankan. Autentikasi SMTP Resend berhasil diverifikasi melalui TLS; tidak ada email uji yang dibuat otomatis. Worker lokal berhasil memanggil endpoint terautentikasi dengan antrean kosong dan tersedia melalui `npm run mail:worker` (poll 10 detik) atau `-- --once`. Pengiriman riil menunggu pendaftaran/kirim ulang oleh pengguna.
+
+Resolver SMTP kini memakai resolver DNS sistem dengan deadline lima detik dan tetap memverifikasi sertifikat menggunakan hostname SMTP asli. Batas pengiriman SMTP 12 detik tetap aktif. QA schema-only kini memeriksa checksum dan melewati migrasi yang sudah terdapat pada skema sumber. Tes terbaru: 206 lulus, sembilan integrasi aduan dilewati; typecheck, lint dan QA database terisolasi lulus. Status deployment production tetap belum dilakukan.

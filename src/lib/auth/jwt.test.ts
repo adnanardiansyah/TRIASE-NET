@@ -101,8 +101,15 @@ describe("jwt sesi", () => {
     // Secret cadangan di dalam source code berarti siapa pun yang membaca
     // repository bisa membuat token sesi untuk role mana pun.
     expect(() => issueSessionToken({ sub: "a@poltek.test", role: "ADMIN" }, 60)).toThrow(
-      /JWT_SIGNING_SECRET wajib disetel di produksi/i,
+      /JWT_SIGNING_SECRET wajib/i,
     );
+  });
+
+  it("binds sessions to issuer, audience and bounded lifetime", () => {
+    const token=issueSessionToken({sub:"user@example.test",role:"SATGAS"},60);
+    vi.stubEnv("JWT_AUDIENCE","other-application");expect(()=>verifySessionToken(token)).toThrow(/tujuan/);
+    vi.unstubAllEnvs();
+    expect(()=>verifySessionToken(issueSessionToken({sub:"user@example.test",role:"SATGAS"},241))).toThrow(/Masa berlaku/);
   });
 
   it("mendeklarasikan daftar role sebagai satu sumber kebenaran", () => {

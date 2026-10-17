@@ -16,7 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: ["/"],
         disallow: [
-          "/login",
+          "/login", "/register", "/verifikasi", "/forgot-password", "/reset-password",
           "/mahasiswa",
           "/satgas",
           "/admin",

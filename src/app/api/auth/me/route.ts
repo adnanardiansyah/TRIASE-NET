@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = requireSession(request);
     assertSessionContext(session, request.headers.get("user-agent") ?? "");
-    const id = await resolveActorId(session.email ?? session.sub, session.role);
+    const id = await resolveActorId(session.email ?? session.sub, session.role, session.authVersion);
     if (id !== session.userId) throw new ApiError(401, "Silakan masuk ulang.");
     const data = await withActorContext({ userId: id, role: session.role }, async (trx) => {
       const user = await trx.selectFrom("users").select(["display_name", "role"]).where("id", "=", id).executeTakeFirstOrThrow();

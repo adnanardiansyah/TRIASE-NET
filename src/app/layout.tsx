@@ -50,7 +50,7 @@ export default function RootLayout({
             akan pernah masuk viewport dan tetap tak terlihat selamanya.
             `!important` di sini hanya berlaku ketika scripting dimatikan. */}
         <noscript>
-          <style>{`[data-reveal]{opacity:1!important;transform:none!important}`}</style>
+          <style>{`[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}`}</style>
         </noscript>
       </head>
       <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased">

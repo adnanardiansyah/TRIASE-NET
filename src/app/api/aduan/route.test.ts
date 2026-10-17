@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { issueSessionToken } from "@/lib/auth/jwt";
 import { GET, POST } from "./route";
+
+beforeEach(() => vi.stubEnv("JWT_SIGNING_SECRET", "test-only-signing-secret-at-least-32-characters"));
+afterEach(() => vi.unstubAllEnvs());
 
 function request(body: unknown, authenticated = true, origin = "http://localhost") {
   const token = issueSessionToken({ sub: "student@example.test", role: "MAHASISWA" });

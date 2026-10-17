@@ -11,6 +11,8 @@ import { STATUS_TRANSITIONS } from "@/lib/ticket-workflow";
 import { DashboardShell } from "./dashboard-shell";
 import { RiskPill, StatusPill } from "./dashboard/pill";
 import { StaffDecryptPanel } from "./staff-decrypt-panel";
+import { TicketDeadline } from "./ticket-deadline";
+import { dashboardPaths } from "@/lib/dashboard-routes";
 import { TicketConversation } from "./ticket-conversation";
 
 export function TicketDetailView({ initial, role }: { initial: TicketDetail; role: AppRole }) {
@@ -29,7 +31,7 @@ export function TicketDetailView({ initial, role }: { initial: TicketDetail; rol
       const response = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: selected, expectedVersion: ticket.rowVersion }) });
       const data = await response.json();
       if (!response.ok) setError(data.message ?? "Status belum dapat diperbarui.");
-      else { setSelected(""); setNotice("Status diperbarui."); }
+      else { window.dispatchEvent(new Event("triase:ticket-updated")); setSelected(""); setNotice("Status diperbarui."); }
       if (response.ok || response.status === 409) {
         const fresh = await fetch(url, { cache: "no-store" });
         if (fresh.ok) setDetail(await fresh.json());
@@ -38,9 +40,9 @@ export function TicketDetailView({ initial, role }: { initial: TicketDetail; rol
     finally { setPending(false); }
   }
   const transitions = STATUS_TRANSITIONS[ticket.status];
-  const home = role === "ADMIN" ? "/admin" : isStaff ? "/satgas" : "/mahasiswa";
-  return <DashboardShell role={role} title="Detail aduan" subtitle={ticket.ticketId} actions={<Link href={home} className="ui-btn"><ArrowLeft size={14} />Kembali ke dashboard</Link>}>
-    <header className="border-y border-zinc-200 bg-white px-5 py-6"><div className="flex flex-wrap items-center gap-2"><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /><RiskPill riskBand={ticket.riskBand} label={`Risiko ${formatRiskBand(ticket.riskBand).toLowerCase()}`} /><span className="ui-tag">{formatTicketCategory(ticket.category)}</span></div><h2 className="mt-4 break-words text-xl font-semibold text-zinc-800">{ticket.subject}</h2><p className="mt-3 flex items-center gap-2 text-[10px] text-zinc-400"><Clock3 size={12} />Diajukan {new Date(ticket.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</p></header>
+  const home = dashboardPaths(role).tickets;
+  return <DashboardShell role={role} title="Detail aduan" subtitle={ticket.ticketId} actions={<Link href={home} className="ui-btn"><ArrowLeft size={14} />Kembali ke daftar aduan</Link>}>
+    <header className="border-y border-zinc-200 bg-white px-5 py-6"><div className="flex flex-wrap items-center gap-2"><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /><RiskPill riskBand={ticket.riskBand} label={`Risiko ${formatRiskBand(ticket.riskBand).toLowerCase()}`} /><span className="ui-tag">{formatTicketCategory(ticket.category)}</span></div><h2 className="mt-4 break-words text-xl font-semibold text-zinc-800">{ticket.subject}</h2><p className="mt-3 flex items-center gap-2 text-[10px] text-zinc-400"><Clock3 size={12} />Diajukan {new Date(ticket.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</p><TicketDeadline ticket={ticket} /></header>
     <div className="grid gap-9 py-7 lg:grid-cols-[minmax(0,1fr)_270px]">
       <div className="min-w-0"><section aria-labelledby="body-heading"><h2 id="body-heading" className="ui-section-title mb-4">Isi pengaduan</h2>{isStaff ? <StaffDecryptPanel ticketId={ticket.ticketId} /> : <p className="whitespace-pre-wrap break-words text-[13px] leading-8 text-zinc-600">{detail.body}</p>}</section><TicketConversation ticketId={ticket.ticketId} isStaff={isStaff} closed={ADUAN_CLOSED_STATUS.includes(ticket.status)} /></div>
       <aside className="min-w-0 border-t border-zinc-200 pt-6 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0"><div className="flex items-center gap-2"><Fingerprint size={15} className="text-emerald-700" /><h2 className="ui-section-title">Pelapor</h2></div><p className="mt-3 break-all font-mono text-xs text-emerald-700">{ticket.pseudonym}</p>

@@ -353,6 +353,7 @@ export interface AduanRateLimitsTable {
  * Peta skema lengkap. Nama tabel adalah kunci; nilainya adalah interface baris.
  */
 export interface Database {
+  notification_reads: { user_id: string; notification_key: string; read_at: Timestamp };
   aduan_replies: {
     id: string;
     aduan_id: string;

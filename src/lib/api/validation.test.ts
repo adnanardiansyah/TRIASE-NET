@@ -20,6 +20,10 @@ describe("API validation", () => {
     expect(loginSchema.safeParse({ email: "USER@example.test", password: "abc" }).success).toBe(true);
     expect(loginSchema.safeParse({ challengeId: "not-a-uuid", otp: 123456 }).success).toBe(false);
   });
+  it("rejects missing Origin and cross-site fetch metadata", () => {
+    expect(()=>assertSameOrigin(new Request("http://localhost/api"))).toThrow();
+    expect(()=>assertSameOrigin(new Request("http://localhost/api",{headers:{origin:"http://localhost","sec-fetch-site":"cross-site"}}))).toThrow();
+  });
   it("normalizes ticket codes and blocks foreign origins", () => {
     expect(readTicketCode(" trx-2026-0123abcd ")).toBe("TRX-2026-0123ABCD");
     expect(() => readTicketCode("unknown")).toThrow();

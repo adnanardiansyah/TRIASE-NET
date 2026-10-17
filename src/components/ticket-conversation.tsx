@@ -44,6 +44,7 @@ export function TicketConversation({ ticketId, isStaff, closed }: { ticketId: st
       const data = await response.json();
       if (!response.ok) { setStepUp(data.code === "STEP_UP_REQUIRED"); setError(data.message); return; }
       retry.current = null;
+      window.dispatchEvent(new Event("triase:ticket-updated"));
       setBody("");
       await load();
     } catch { setError("Balasan belum terkonfirmasi. Coba kirim lagi."); }

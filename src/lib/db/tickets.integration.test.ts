@@ -3,8 +3,8 @@ import { Pool } from "pg";
 import { hash } from "@node-rs/argon2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "kysely";
-import { addReply, changeTicketStatus, createTicket, decryptTicket, listReplies, listTickets, ticketDetail } from "./tickets";
-import { closeDb, getDb } from "./client";
+import { addReply, changeTicketStatus, createTicket, decryptTicket, listReplies, listTickets, ticketDetail, listNotifications, readNotifications } from "./tickets";
+import { closeDb, getDb, withActorContext } from "./client";
 import { deviceHash } from "@/lib/ztna/access-policy";
 import type { SessionClaims } from "@/lib/auth/jwt";
 
@@ -14,7 +14,7 @@ const studentId = randomUUID();
 const otherId = randomUUID();
 const staffId = randomUUID();
 function session(userId: string, email: string, role: SessionClaims["role"]): SessionClaims {
-  return { sub: email, email, role, userId, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600, mfaVerifiedAt: Math.floor(Date.now() / 1000), deviceHash: deviceHash(ua) };
+  return { sub: email, email, role, userId, authVersion: 1, authMethod: role === "MAHASISWA" ? "PASSWORD" : "TOTP", iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600, mfaVerifiedAt: Math.floor(Date.now() / 1000), deviceHash: deviceHash(ua) };
 }
 const owner = session(studentId, `owner-${studentId}@example.test`, "MAHASISWA");
 const other = session(otherId, `other-${otherId}@example.test`, "MAHASISWA");
@@ -28,6 +28,7 @@ describe.skipIf(!url)("PostgreSQL runtime workflow (isolated database)", () => {
     for (const actor of [owner, other, staff]) {
       await admin.query(`INSERT INTO public.users(id, role, status, institutional_email, display_name, password_hash)
         VALUES ($1,$2,'ACTIVE',$3,$4,$5)`, [actor.userId, actor.role, actor.email, actor.role === "SATGAS" ? "Staff test" : null, actor.role === "SATGAS" ? await hash(randomUUID()) : null]);
+      await admin.query("INSERT INTO public.account_credentials(user_id,password_hash,email_verified_at) VALUES ($1,$2,now())", [actor.userId, await hash(randomUUID())]);
     }
     await admin.query(`INSERT INTO public.satgas_profiles(user_id,employee_id,unit_name,authorized_categories,max_decrypt_risk_score,duty_status,requires_step_up)
       VALUES ($1,'TEST','Testing',enum_range(NULL::public.aduan_category),100,'ON_DUTY',true)`, [staffId]);
@@ -131,6 +132,47 @@ describe.skipIf(!url)("PostgreSQL runtime workflow (isolated database)", () => {
     await admin.query("UPDATE public.users SET status='ACTIVE' WHERE id=$1", [staffId]);
     const logs = await admin.query("SELECT count(*)::int AS total FROM public.ztna_audit_logs WHERE decision IN ('DENY','CHALLENGE')");
     expect(logs.rows[0].total).toBeGreaterThanOrEqual(3);
+  });
+
+  it("scopes notification metadata and persists idempotent per-account read receipts", async () => {
+    const ticket = await createTicket(owner, ua, { subject: "Private notification title", category: "FASILITAS", body: "Private notification body" });
+    const created = (await listNotifications(staff, ua)).find((item) => item.ticketId === ticket.ticketId && item.kind === "SUBMITTED");
+    expect(created).toBeDefined();
+    expect((await listNotifications(owner, ua)).some((item) => item.ticketId === ticket.ticketId)).toBe(false);
+    await changeTicketStatus(staff, ua, ticket.ticketId, "DALAM_PENANGANAN", ticket.rowVersion!);
+    await addReply(staff, ua, ticket.ticketId, "Private staff reply", randomUUID());
+    const feed = (await listNotifications(owner, ua)).filter((item) => item.ticketId === ticket.ticketId);
+    expect(feed.map((item) => item.kind).sort()).toEqual(["REPLY", "STATUS"]);
+    expect(JSON.stringify(feed)).not.toMatch(/Private|@example|PS-/);
+    expect(feed.every((item) => !item.read)).toBe(true);
+    expect((await listNotifications(other, ua)).some((item) => item.ticketId === ticket.ticketId)).toBe(false);
+    await expect(readNotifications(other, ua, [feed[0]!.id])).rejects.toMatchObject({ status: 404 });
+    await readNotifications(owner, ua, feed.map((item) => item.id));
+    await readNotifications(owner, ua, [feed[0]!.id, feed[0]!.id]);
+    await closeDb();
+    expect((await listNotifications(owner, ua)).filter((item) => item.ticketId === ticket.ticketId).every((item) => item.read)).toBe(true);
+    await expect(withActorContext({ userId: otherId, role: "MAHASISWA" }, (trx) => trx.insertInto("notification_reads")
+      .values({ user_id: studentId, notification_key: "forged-receipt" }).execute())).rejects.toMatchObject({ code: "42501" });
+    const invisible = await withActorContext({ userId: otherId, role: "MAHASISWA" }, (trx) => trx.selectFrom("notification_reads").selectAll().where("user_id", "=", studentId).execute());
+    expect(invisible).toHaveLength(0);
+  });
+
+  it("limits staff notifications by category and duty and removes overdue alerts on closure", async () => {
+    const ticket = await createTicket(owner, ua, { subject: "Deadline", category: "FASILITAS", body: "body" });
+    await admin.query("UPDATE public.aduan SET created_at=now()-interval '20 days' WHERE ticket_code=$1", [ticket.ticketId]);
+    expect((await listNotifications(staff, ua)).some((item) => item.ticketId === ticket.ticketId && item.kind === "OVERDUE")).toBe(true);
+    expect((await listNotifications(owner, ua)).some((item) => item.kind === "OVERDUE")).toBe(false);
+    try {
+      await admin.query("UPDATE public.satgas_profiles SET authorized_categories=ARRAY['KEUANGAN']::public.aduan_category[] WHERE user_id=$1", [staffId]);
+      expect((await listNotifications(staff, ua)).some((item) => item.ticketId === ticket.ticketId)).toBe(false);
+      await admin.query("UPDATE public.satgas_profiles SET duty_status='OFF_DUTY' WHERE user_id=$1", [staffId]);
+      await expect(listNotifications(staff, ua)).rejects.toMatchObject({ code: "STAFF_OFF_DUTY" });
+    } finally {
+      await admin.query("UPDATE public.satgas_profiles SET authorized_categories=enum_range(NULL::public.aduan_category), duty_status='ON_DUTY' WHERE user_id=$1", [staffId]);
+    }
+    const current = await ticketDetail(staff, ua, ticket.ticketId);
+    await changeTicketStatus(staff, ua, ticket.ticketId, "DITOLAK", current.ticket.rowVersion!);
+    expect((await listNotifications(staff, ua)).some((item) => item.ticketId === ticket.ticketId && item.kind === "OVERDUE")).toBe(false);
   });
 
   it("keeps the database audit hash chain intact", async () => {

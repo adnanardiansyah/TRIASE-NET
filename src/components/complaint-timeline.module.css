@@ -1,0 +1,17 @@
+.timeline { position: relative; }
+.rail { position: absolute; overflow: hidden; border-radius: 2px; background: #d9e4dc; pointer-events: none; }
+.fill { position: absolute; inset: 0; background: #059669; }
+.horizontal { display: none; left: 20px; right: calc(33.333% - 8px); top: 20px; height: 2px; }
+.horizontal .fill { transform-origin: left; }
+.vertical { top: 20px; bottom: 20px; left: 19px; width: 2px; }
+.vertical .fill { transform-origin: top; }
+.step { position: relative; min-width: 0; padding-left: 60px; }
+.markerRow { display: flex; align-items: center; gap: 14px; height: 40px; }
+.number { position: relative; padding-inline: 6px; background: #f6f7f3; }
+.marker { display: grid; position: absolute; left: 0; top: 0; place-items: center; width: 40px; height: 40px; border: 1px solid #d3dfd6; border-radius: 50%; background: #f6f7f3; color: #809487; transition: color 250ms, background-color 250ms, border-color 250ms, box-shadow 250ms; }
+.step[data-active="true"] .marker { color: #047857; background: #e5f2e9; border-color: #73ac8b; box-shadow: 0 0 0 5px #f6f7f3; }
+.step[data-active="true"] h3 { color: #134e3b; }
+.step:last-child::after { content: ""; position: absolute; left: 19px; top: 40px; bottom: 0; width: 2px; background: #f6f7f3; }
+@media (min-width: 768px) { .horizontal { display: block; right: calc(33.333% - 44px); } .vertical { display: none; } .step { padding-left: 0; } .marker { position: relative; } .step:last-child::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fill { transform: none !important; } .marker { transform: none !important; transition: none; } .step { opacity: 1 !important; transform: none !important; } }
+@media print { .fill { transform: none !important; } .step { opacity: 1 !important; transform: none !important; } }

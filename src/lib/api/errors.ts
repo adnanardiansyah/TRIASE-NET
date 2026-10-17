@@ -14,9 +14,9 @@ export function apiErrorResponse(error: unknown) {
   }
   const code = (error as { code?: string } | null)?.code;
   if (code === "40001" || code === "40P01") {
-    return NextResponse.json({ ok: false, message: "Data sedang berubah. Muat ulang lalu coba lagi." }, { status: 409 });
+    return NextResponse.json({ ok: false, message: "Data sedang berubah. Muat ulang lalu coba lagi." }, { status: 409, headers: { "Cache-Control": "no-store" } });
   }
   // Never return database errors, ciphertext, or configuration secrets to clients.
   console.error("[api] Permintaan gagal", { code: code ?? "INTERNAL" });
-  return NextResponse.json({ ok: false, message: "Layanan belum tersedia. Periksa konfigurasi database dan kunci server." }, { status: 503 });
+  return NextResponse.json({ ok: false, message: "Layanan belum tersedia. Periksa konfigurasi database dan kunci server." }, { status: 503, headers: { "Cache-Control": "no-store" } });
 }

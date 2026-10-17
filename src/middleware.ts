@@ -35,7 +35,10 @@ export function middleware(request: NextRequest) {
     }
 
     try {
-      return redirectToHome(request, verifySessionToken(sessionToken));
+      const claims = verifySessionToken(sessionToken);
+      if (!claims.authVersion) throw new Error("Legacy session");
+      // Let revoked but cryptographically valid cookies reach login without a redirect loop.
+      return NextResponse.next();
     } catch {
       // Token rusak dibuang agar pengguna bisa masuk lagi.
       const response = NextResponse.next();
@@ -59,6 +62,7 @@ export function middleware(request: NextRequest) {
 
   try {
     claims = verifySessionToken(sessionToken);
+    if (!claims.authVersion) throw new Error("Legacy session");
   } catch {
     return redirectToLogin(request, pathname);
   }
@@ -84,6 +88,7 @@ export function middleware(request: NextRequest) {
  * slippery.
  */
 export const config = {
+  runtime: "nodejs",
   matcher: [
     "/login",
     "/mahasiswa/:path*",

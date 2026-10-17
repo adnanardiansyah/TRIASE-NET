@@ -14,6 +14,7 @@
 import "server-only";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool, type PoolConfig } from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 
 import type { AppRole } from "@/lib/domain/enums";
 import type { Database } from "@/lib/db/types";
@@ -40,16 +41,25 @@ function readConnectionConfig(): PoolConfig {
     );
   }
 
-  const max = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "10", 10);
-  const useSsl = process.env.DATABASE_SSL === "true";
+  const max = Number.parseInt(process.env.DATABASE_POOL_MAX ?? (process.env.VERCEL === "1" ? "3" : "10"), 10);
+  const url = new URL(connectionString);
+  const sslMode=url.searchParams.get("sslmode");
+  const useSsl = process.env.DATABASE_SSL === "true" || sslMode === "verify-full" || sslMode === "require";
+  if(process.env.NODE_ENV==="production" && !["localhost","127.0.0.1","[::1]"].includes(url.hostname) && !useSsl) throw new Error("PostgreSQL produksi wajib memakai TLS terverifikasi.");
+  // pg connection-string SSL flags can override verification; use explicit TLS config.
+  for(const name of ["sslmode","sslcert","sslkey","sslrootcert"])url.searchParams.delete(name);
 
   return {
-    connectionString,
+    connectionString: url.toString(),
     max: Number.isFinite(max) && max > 0 ? max : 10,
     // Jalur produksi: basis data berada di jaringan privat/VPC.
     ssl: useSsl ? { rejectUnauthorized: true } : undefined,
     // Nama aplikasi pada log koneksi agar mudah disaring.
     application_name: "triase-net-app",
+    idleTimeoutMillis: 10000,
+    allowExitOnIdle: true,
+    query_timeout: 17000,
+    idle_in_transaction_session_timeout: 15000,
     connectionTimeoutMillis: 5000,
     statement_timeout: 15000,
   };
@@ -77,6 +87,8 @@ function createPool(): Pool {
 export function getPool(): Pool {
   if (!globalThis.__triasePool) {
     globalThis.__triasePool = createPool();
+    if(process.env.VERCEL==="1")attachDatabasePool(globalThis.__triasePool);
+    globalThis.__triasePool.on("error",()=>console.error("[db] Idle connection failed"));
   }
   return globalThis.__triasePool;
 }

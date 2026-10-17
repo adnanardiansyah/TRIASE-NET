@@ -17,7 +17,7 @@ export function deviceHash(userAgent: string): string {
 }
 
 export function assertSessionContext(session: SessionClaims, userAgent: string, now = Date.now()): void {
-  if (!session.userId || !session.deviceHash || !session.mfaVerifiedAt) {
+  if (!session.userId || !session.deviceHash || !session.authVersion || (session.role === "MAHASISWA" ? !["PASSWORD", "TOTP"].includes(session.authMethod ?? "") : session.authMethod !== "TOTP" || !session.mfaVerifiedAt)) {
     throw new ApiError(401, "Silakan masuk ulang untuk memperbarui sesi.", "SESSION_REFRESH_REQUIRED");
   }
   if (session.exp * 1000 <= now || session.deviceHash !== deviceHash(userAgent)) {

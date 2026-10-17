@@ -23,6 +23,7 @@ export const decryptSchema = z.object({ ticket: ticketCodeSchema }).strict();
 export const stepUpSchema = z.object({ otp: z.string().regex(/^\d{6}$/) }).strict();
 export const loginSchema = z.union([
   z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(1).max(256) }).strict(),
+  z.object({ challengeId: z.string().uuid(), recoveryCode: z.string().regex(/^(?:[a-fA-F0-9]{8}-){3}[a-fA-F0-9]{8}$/) }).strict(),
   z.object({ challengeId: z.string().uuid(), otp: z.string().regex(/^\d{6}$/) }).strict(),
 ]);
 
@@ -64,7 +65,9 @@ export function readTicketCode(value: string): string {
 
 export function assertSameOrigin(request: Request): void {
   const origin = request.headers.get("origin");
-  if ((origin && origin !== new URL(request.url).origin) || request.headers.get("sec-fetch-site") === "cross-site") {
+  const expected = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).origin : new URL(request.url).origin;
+  // Require a browser Origin for all cookie-authenticated mutations, including logout.
+  if (!origin || origin !== expected || request.headers.get("sec-fetch-site") === "cross-site") {
     throw new ApiError(403, "Asal permintaan tidak diizinkan.");
   }
 }

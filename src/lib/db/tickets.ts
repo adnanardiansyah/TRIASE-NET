@@ -9,6 +9,9 @@ import { decodeAdaptiveCipher, decryptTicketPayload, encodeAdaptiveCipher, encry
 import { ADUAN_CLOSED_STATUS, RETENTION_DAYS_BY_RISK, type AduanCategory, type AduanStatus, type AuditAction } from "@/lib/domain/enums";
 import { getRiskBand } from "@/lib/crypto/adaptive";
 import { assertFreshMfa, assertSessionContext, assertStaffAccess, submissionRisk, type StaffAccess } from "@/lib/ztna/access-policy";
+import { formatTicketStatus } from "@/lib/dashboard-aggregates";
+import { recentNotifications, NOTIFICATION_LIMIT, type AppNotification } from "@/lib/notifications";
+import { SLA_TARGET_DAYS, ticketDeadline } from "@/lib/ticket-sla";
 import { canTransitionStatus } from "@/lib/ticket-workflow";
 import type { TicketMetadata } from "@/lib/ticket-types";
 import { resolveActorId } from "./actors";
@@ -60,13 +63,13 @@ async function audit(ctx: Context, action: AuditAction, decision: "ALLOW" | "DEN
   await sql`INSERT INTO public.ztna_audit_logs
     (id, trace_id, action, decision, ztna_risk_score, resource_type, resource_id, ticket_code, reason_code, mfa_verified, auth_method)
     VALUES (${id}::uuid, ${trace}::uuid, ${action}::public.audit_action, ${decision}::public.audit_decision,
-      ${row?.risk_score ?? 0}, 'aduan', ${row?.id ?? null}, ${row?.ticket_code ?? null}, ${reason ?? null}, true, 'TOTP')`.execute(ctx.trx);
+      ${row?.risk_score ?? 0}, 'aduan', ${row?.id ?? null}, ${row?.ticket_code ?? null}, ${reason ?? null}, ${ctx.session.authMethod === "TOTP" && !!ctx.session.mfaVerifiedAt}, ${ctx.session.authMethod ?? "PASSWORD"})`.execute(ctx.trx);
   return { id, trace };
 }
 
 async function actor<T>(session: SessionClaims, userAgent: string, work: (ctx: Context) => Promise<T>): Promise<T> {
   assertSessionContext(session, userAgent);
-  const id = await resolveActorId(session.email ?? session.sub, session.role);
+  const id = await resolveActorId(session.email ?? session.sub, session.role, session.authVersion);
   if (id !== session.userId) throw new ApiError(401, "Identitas akun berubah. Silakan masuk ulang.");
   const pseudonym = session.role === "MAHASISWA" ? pseudonymFor(session.email ?? session.sub) : null;
   const context = { userId: id, role: session.role, pseudonymId: pseudonym };
@@ -277,5 +280,71 @@ export async function addReply(session: SessionClaims, userAgent: string, code: 
     const log = await audit(ctx, "ADUAN_REPLY", "ALLOW", row);
     await ctx.trx.insertInto("aduan_replies").values({ id, aduan_id: row.id, author_role: session.role, author_pseudonym_id: ctx.pseudonym, payload, kek_version: version, ztna_audit_id: log.id }).execute();
     return { id };
+  });
+}
+
+async function notificationItems(ctx: Context): Promise<AppNotification[]> {
+  // Joining aduan preserves its owner/category/duty RLS scope on every event.
+  let changes = ctx.trx.selectFrom("aduan_status_history as h")
+    .innerJoin("aduan as a", "a.id", "h.aduan_id")
+    .select(["h.id", "h.from_status", "h.to_status", "h.changed_at", "a.ticket_code"])
+    .where("h.changed_by", "!=", ctx.session.userId!);
+  if (ctx.session.role === "MAHASISWA") changes = changes.where("h.from_status", "is not", null);
+  const statuses = await changes.orderBy("h.changed_at", "desc").orderBy("h.id", "desc").limit(NOTIFICATION_LIMIT).execute();
+  const replies = await ctx.trx.selectFrom("aduan_replies as r")
+    .innerJoin("aduan as a", "a.id", "r.aduan_id")
+    .select(["r.id", "r.created_at", "a.ticket_code"])
+    .where("r.author_role", ctx.session.role === "MAHASISWA" ? "!=" : "=", "MAHASISWA")
+    .orderBy("r.created_at", "desc").orderBy("r.id", "desc").limit(NOTIFICATION_LIMIT).execute();
+  const items: AppNotification[] = statuses.map((entry) => ({
+    id: `status:${entry.id}`, ticketId: entry.ticket_code,
+    kind: entry.from_status === null ? "SUBMITTED" : "STATUS",
+    message: entry.from_status === null ? "Aduan baru menunggu penanganan." : `Status aduan: ${formatTicketStatus(entry.to_status)}.`,
+    createdAt: entry.changed_at.toISOString(), read: false,
+  }));
+  items.push(...replies.map((entry): AppNotification => ({
+    id: `reply:${entry.id}`, ticketId: entry.ticket_code, kind: "REPLY",
+    message: ctx.session.role === "MAHASISWA" ? "Petugas mengirim balasan baru." : "Pelapor mengirim balasan baru.",
+    createdAt: entry.created_at.toISOString(), read: false,
+  })));
+  if (ctx.session.role !== "MAHASISWA") {
+    const due = sql<Date>`a.created_at + CASE a.risk_band::text
+      WHEN 'HIGH' THEN ${SLA_TARGET_DAYS.HIGH} * interval '1 day'
+      WHEN 'LOW' THEN ${SLA_TARGET_DAYS.LOW} * interval '1 day'
+      ELSE ${SLA_TARGET_DAYS.MEDIUM} * interval '1 day' END`;
+    const overdue = await ctx.trx.selectFrom("aduan as a").select(["a.ticket_code", "a.created_at", "a.risk_band"])
+      .where("a.status", "not in", ADUAN_CLOSED_STATUS).where(due, "<", new Date())
+      .orderBy(due, "asc").orderBy("a.id", "asc").limit(10).execute();
+    items.push(...overdue.map((entry): AppNotification => {
+      const deadline = ticketDeadline({ createdAt: entry.created_at.toISOString(), riskBand: entry.risk_band })!;
+      return { id: `deadline:${entry.ticket_code}:${deadline}`, ticketId: entry.ticket_code,
+        kind: "OVERDUE", message: "Target penanganan terlewati. Tinjau prioritas aduan ini.", createdAt: deadline, read: false };
+    }));
+  }
+  const recent = recentNotifications(items);
+  if (!recent.length) return recent;
+  const receipts = await ctx.trx.selectFrom("notification_reads").select("notification_key")
+    .where("user_id", "=", ctx.session.userId!).where("notification_key", "in", recent.map((item) => item.id)).execute();
+  const read = new Set(receipts.map((receipt) => receipt.notification_key));
+  return recent.map((item) => ({ ...item, read: read.has(item.id) }));
+}
+
+export async function listNotifications(session: SessionClaims, userAgent: string): Promise<AppNotification[]> {
+  return actor(session, userAgent, async (ctx) => {
+    const items = await notificationItems(ctx);
+    await audit(ctx, "ADUAN_METADATA_READ", "ALLOW", undefined, "NOTIFICATIONS_READ");
+    return items;
+  });
+}
+
+export async function readNotifications(session: SessionClaims, userAgent: string, ids: string[]): Promise<void> {
+  return actor(session, userAgent, async (ctx) => {
+    const visible = new Set((await notificationItems(ctx)).map((item) => item.id));
+    const unique = [...new Set(ids)];
+    if (!unique.length || unique.length > NOTIFICATION_LIMIT || unique.some((id) => !visible.has(id))) {
+      throw new ApiError(404, "Pembaruan tidak tersedia. Muat ulang notifikasi.");
+    }
+    await ctx.trx.insertInto("notification_reads").values(unique.map((id) => ({ user_id: session.userId!, notification_key: id })))
+      .onConflict((conflict) => conflict.columns(["user_id", "notification_key"]).doNothing()).execute();
   });
 }

@@ -1,0 +1,9 @@
+.atmosphere { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.ambient { position: absolute; inset: -8%; opacity: .65; background: radial-gradient(ellipse at 22% 38%, #0d665c24, transparent 55%), radial-gradient(ellipse at 78% 58%, #064e3b1a, transparent 55%); animation: ambient-drift 26s ease-in-out infinite alternate; }
+.particles { display: block; width: 100%; height: 100%; fill: #a7f3d0; opacity: .16; }
+.dot { animation: particle-drift 22s ease-in-out infinite alternate; }
+.atmosphere[data-running="false"] .ambient, .atmosphere[data-running="false"] .dot { animation-play-state: paused; }
+@keyframes ambient-drift { from { transform: translate3d(-1.5%, -1%, 0); } to { transform: translate3d(1.5%, 1%, 0); } }
+@keyframes particle-drift { from { transform: translate3d(-6px, 8px, 0); } to { transform: translate3d(9px, -10px, 0); } }
+@media (max-width: 767px) { .particle:nth-child(n+10) { display: none; } .ambient { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .atmosphere { display: none; } .ambient, .dot { animation: none; } }

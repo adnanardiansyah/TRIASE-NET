@@ -11,36 +11,25 @@ export interface SessionClaims {
   userId?: string;
   mfaVerifiedAt?: number;
   deviceHash?: string;
+  authVersion?: number;
+  authMethod?: "PASSWORD" | "TOTP";
+  iss?: string;
+  aud?: string;
   iat: number;
   exp: number;
 }
 
 const SESSION_COOKIE = "triase-session";
 
-/**
- * Rahasia penandatangan token sesi.
- *
- * Nilai cadangan hanya boleh hidup di pengembangan. Di produksi, secret yang
- * hilang harus menggagalkan permintaan dengan pesan eksplisit — bukan diam-diam
- * menandatangani token memakai string yang diketahui publik. Secret cadangan
- * yang tertanam di source code berarti siapa pun yang membaca repository bisa
- * membuat token sesi untuk role mana pun.
- */
+/** Semua lingkungan memerlukan secret lokal yang kuat; tidak ada kunci cadangan. */
 function getJwtSecret(): string {
   const secret = process.env.JWT_SIGNING_SECRET;
 
-  if (secret && secret.length >= 32) {
+  if (secret && secret.length >= 32 && !/CHANGE_ME|YOUR_SECRET/i.test(secret)) {
     return secret;
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "JWT_SIGNING_SECRET wajib disetel di produksi (minimal 32 karakter). " +
-        "Token sesi tidak boleh ditandatangani dengan nilai cadangan.",
-    );
-  }
-
-  return "TRIASE_DEV_JWT_SECRET_32_BYTES_LONG";
+  throw new Error("JWT_SIGNING_SECRET wajib diisi minimal 32 karakter.");
 }
 
 export function encodeBase64Url(value: string): string {
@@ -62,6 +51,8 @@ export function issueSessionToken(
   const now = Math.floor(Date.now() / 1000);
   const claims: SessionClaims = {
     ...payload,
+    iss: process.env.JWT_ISSUER ?? "triase-net",
+    aud: process.env.JWT_AUDIENCE ?? "triase-net-app",
     iat: now,
     exp: now + ttlMinutes * 60,
   };
@@ -99,10 +90,12 @@ function parseClaims(payloadPart: string): SessionClaims {
     throw new Error("Token sesi memiliki role yang tidak dikenal.");
   }
 
-  if (typeof candidate.exp !== "number" || typeof candidate.iat !== "number") {
+  if (!Number.isFinite(candidate.exp) || !Number.isFinite(candidate.iat)) {
     throw new Error("Token sesi tidak memiliki klaim waktu yang valid.");
   }
 
+  if (candidate.iss !== (process.env.JWT_ISSUER ?? "triase-net") || candidate.aud !== (process.env.JWT_AUDIENCE ?? "triase-net-app")) throw new Error("Penerbit atau tujuan token tidak valid.");
+  if (candidate.iat! > Math.floor(Date.now()/1000)+30 || candidate.exp!-candidate.iat! > 14400) throw new Error("Masa berlaku sesi tidak valid.");
   if (candidate.email !== undefined && typeof candidate.email !== "string") {
     throw new Error("Token sesi memiliki klaim email yang tidak valid.");
   }
@@ -117,6 +110,8 @@ function parseClaims(payloadPart: string): SessionClaims {
     throw new Error("Waktu MFA tidak valid.");
   }
 
+  if (candidate.authVersion !== undefined && (!Number.isInteger(candidate.authVersion) || candidate.authVersion < 1)) throw new Error("Versi sesi tidak valid.");
+  if (candidate.authMethod !== undefined && !["PASSWORD", "TOTP"].includes(candidate.authMethod)) throw new Error("Metode sesi tidak valid.");
   return candidate as SessionClaims;
 }
 
@@ -133,6 +128,9 @@ export function verifySessionToken(token: string): SessionClaims {
     throw new Error("Token sesi tidak valid.");
   }
 
+  let header: {alg?:string;typ?:string};
+  try { header=JSON.parse(decodeBase64Url(headerPart)); } catch { throw new Error("Header sesi tidak valid."); }
+  if(header?.alg!=="HS256"||header?.typ!=="JWT")throw new Error("Algoritma sesi tidak valid.");
   const expected = sign(`${headerPart}.${payloadPart}`);
   const actual = Buffer.from(signaturePart, "base64url");
 
