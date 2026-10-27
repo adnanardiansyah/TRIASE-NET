@@ -20,5 +20,11 @@ describe("SMTP security",()=>{
  it("hides provider errors and always closes transport",async()=>{
   m.send.mockRejectedValue(new Error("private-password provider internals"));await expect(sendAccountEmail("a@example.test","secret-token","verify")).rejects.toMatchObject({code:"MAIL_DELIVERY_FAILED"});expect(m.close).toHaveBeenCalled();
  });
+ it("enforces Resend implicit TLS and fixed username",async()=>{
+  vi.stubEnv("SMTP_HOST","smtp.resend.com");vi.stubEnv("SMTP_USER","resend");vi.stubEnv("SMTP_PORT","465");
+  await sendAccountEmail("a@example.test","token","verify");
+  expect(m.create).toHaveBeenCalledWith(expect.objectContaining({secure:true,port:465,requireTLS:false,tls:{rejectUnauthorized:true,servername:"smtp.resend.com"}}));
+  vi.stubEnv("SMTP_PORT","587");expect(()=>mailConfiguration()).toThrow();
+ });
  it("rejects partial credentials and credentials embedded in origin",()=>{vi.stubEnv("SMTP_PASSWORD","");expect(()=>mailConfiguration()).toThrow();vi.stubEnv("SMTP_PASSWORD","private-password");vi.stubEnv("NEXT_PUBLIC_APP_URL","https://name:private-password@app.example.test");expect(()=>mailConfiguration()).toThrow();});
 });

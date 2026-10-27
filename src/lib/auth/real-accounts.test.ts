@@ -22,6 +22,8 @@ describe("real account security", () => {
     expect(sealTotp("SECRET", "account-a")).not.toBe(sealed);
     expect(openTotp(sealed,"account-a")).toBe("SECRET");
     expect(() => openTotp(sealed,"account-b")).toThrow();
+    vi.stubEnv("AUTH_ENCRYPTION_KEY_BASE64", Buffer.alloc(32, 43).toString("base64"));
+    expect(() => openTotp(sealed,"account-a")).toThrow();
     vi.stubEnv("AUTH_ENCRYPTION_KEY_BASE64", "");
     expect(() => sealTotp("SECRET","a")).toThrow();
   });
