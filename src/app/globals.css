@@ -75,25 +75,28 @@ button:disabled { cursor: not-allowed; }
 }
 .brand-logo { flex-shrink: 0; width: 44px; height: 44px; object-fit: contain; }
 .brand-institution-logo { width: 48px; height: 48px; flex-shrink: 0; object-fit: contain; }
+.brand-department-logo { border-radius: 6px; }
 .brand-institution-divider { width: 1px; height: 30px; flex-shrink: 0; background: #ffffff40; }
 @media (min-width: 768px) and (max-width: 1023px) {
-  .landing-header .brand-institution { gap: 8px; }
+  .landing-header .brand.brand-institution { gap: 8px; }
   .landing-header .brand-institution-logo, .landing-header .brand-institution .brand-logo { width: 38px; height: 38px; }
   .landing-header .brand-institution .brand-name { font-size: 18px; }
 }
 @media (max-width: 767px) {
-  .landing-header > nav:first-of-type { gap: 8px; }
+  .landing-header > nav:first-of-type { gap: 8px; padding-inline: 12px; }
   .landing-header > nav:first-of-type .ui-btn { padding-inline: 14px; }
   .landing-header .ui-btn > svg { display: none; }
-  .landing-header .brand-institution { gap: 6px; }
+  .landing-header .brand.brand-institution { gap: 6px; }
+  .landing-header .brand-institution-divider { display: none; }
   .landing-header .brand-institution-logo, .landing-header .brand-institution .brand-logo { width: 34px; height: 34px; }
   .landing-header .brand-institution .brand-name { font-size: 16px; }
   .landing-header .brand-institution .brand-caption { display: none; }
 }
 @media (max-width: 360px) {
-  .landing-header .brand-institution { gap: 5px; }
-  .landing-header .brand-institution-logo, .landing-header .brand-institution .brand-logo { width: 28px; height: 28px; }
-  .landing-header .brand-institution .brand-name { font-size: 14px; }
+  .landing-header .brand.brand-institution { gap: 4px; }
+  .landing-header > nav:first-of-type .ui-btn { padding-inline: 10px; }
+  .landing-header .brand-institution-logo, .landing-header .brand-institution .brand-logo { width: 24px; height: 24px; }
+  .landing-header .brand-institution .brand-name { font-size: 12px; }
   .landing-header .brand-institution-divider { display: none; }
 }
 .landing-header { background: rgba(5, 36, 30, .22); backdrop-filter: blur(12px); border-bottom-color: #ffffff14; transition: background-color 300ms, backdrop-filter 300ms, box-shadow 300ms, border-color 300ms; padding-top: env(safe-area-inset-top, 0px); }
