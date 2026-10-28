@@ -1,17 +1,34 @@
-.timeline { position: relative; }
-.rail { position: absolute; overflow: hidden; border-radius: 2px; background: #d9e4dc; pointer-events: none; }
-.fill { position: absolute; inset: 0; background: #059669; }
-.horizontal { display: none; left: 20px; right: calc(33.333% - 8px); top: 20px; height: 2px; }
+.timeline { position: relative; margin-top: 44px; isolation: isolate; }
+.rail { position: absolute; overflow: hidden; border-radius: 999px; background: #dce8df; pointer-events: none; }
+.fill { position: absolute; inset: 0; background: linear-gradient(90deg, #9bcdb0, #047857); }
+.horizontal { display: none; left: calc(16.6667% + 8px); right: calc(16.6667% + 8px); top: 23px; height: 2px; }
 .horizontal .fill { transform-origin: left; }
-.vertical { top: 20px; bottom: 20px; left: 19px; width: 2px; }
-.vertical .fill { transform-origin: top; }
-.step { position: relative; min-width: 0; padding-left: 60px; }
-.markerRow { display: flex; align-items: center; gap: 14px; height: 40px; }
-.number { position: relative; padding-inline: 6px; background: #f6f7f3; }
-.marker { display: grid; position: absolute; left: 0; top: 0; place-items: center; width: 40px; height: 40px; border: 1px solid #d3dfd6; border-radius: 50%; background: #f6f7f3; color: #809487; transition: color 250ms, background-color 250ms, border-color 250ms, box-shadow 250ms; }
-.step[data-active="true"] .marker { color: #047857; background: #e5f2e9; border-color: #73ac8b; box-shadow: 0 0 0 5px #f6f7f3; }
-.step[data-active="true"] h3 { color: #134e3b; }
-.step:last-child::after { content: ""; position: absolute; left: 19px; top: 40px; bottom: 0; width: 2px; background: #f6f7f3; }
-@media (min-width: 768px) { .horizontal { display: block; right: calc(33.333% - 44px); } .vertical { display: none; } .step { padding-left: 0; } .marker { position: relative; } .step:last-child::after { display: none; } }
-@media (prefers-reduced-motion: reduce) { .fill { transform: none !important; } .marker { transform: none !important; transition: none; } .step { opacity: 1 !important; transform: none !important; } }
+.vertical { top: 23px; bottom: 24px; left: 22px; width: 2px; }
+.vertical .fill { transform-origin: top; background: linear-gradient(#9bcdb0, #047857); }
+.steps { display: grid; gap: 24px; position: relative; list-style: none; margin: 0; padding: 0; }
+.step { position: relative; min-width: 0; padding-left: 64px; }
+.markerRow { position: absolute; left: 0; top: 0; width: 46px; height: 46px; z-index: 1; }
+.marker { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid #cdded2; border-radius: 50%; background: #f7faf8; color: #526b5c; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 7px #f7faf8; transition: color 300ms, background-color 300ms, border-color 300ms, box-shadow 300ms; }
+.step[data-active="true"] .marker { color: #ecfdf5; background: #065f46; border-color: #065f46; box-shadow: 0 0 0 7px #f7faf8, 0 0 0 8px #cfe2d5; }
+.card { position: relative; display: flex; flex-direction: column; height: 100%; padding: 26px; border: 1px solid #dbe7de; border-radius: 20px; background: radial-gradient(ellipse at top right, #e6f2e980, transparent 65%), #fff; box-shadow: 0 8px 30px #123c2405; transition: transform 250ms, border-color 250ms, box-shadow 250ms; }
+.cardTop { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 26px; }
+.number { color: #526b5c; text-transform: uppercase; font-size: 10px; font-weight: 600; letter-spacing: .15em; }
+.icon { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #dcebe1; border-radius: 14px; color: #047857; background: #f0f7f2; }
+.card h3 { font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -.025em; color: #143e2e; }
+.body { margin: 14px 0 28px; color: #52635a; font-size: 13px; line-height: 1.9; }
+.detail { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 18px; border-top: 1px solid #e9efeb; font-size: 11px; color: #35624a; }
+.detail > span { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #6ba383; }
+.step:last-child::after { content: ""; position: absolute; left: 21px; top: 46px; bottom: -1px; width: 4px; background: #f7faf8; }
+@media (min-width: 768px) {
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .horizontal { display: block; }
+  .vertical { display: none; }
+  .step { padding-left: 0; padding-top: 74px; }
+  .markerRow { left: calc(50% - 23px); }
+  .step:last-child::after { display: none; }
+}
+@media (min-width: 768px) and (max-width: 1023px) { .steps { gap: 16px; } .card { padding: 20px 16px; } .card h3 { font-size: 16px; } .body { font-size: 12px; } .icon { width: 40px; height: 40px; } }
+@media (max-width: 480px) { .step { padding-left: 54px; } .card { padding: 22px 18px; border-radius: 16px; } .cardTop { margin-bottom: 20px; } .icon { width: 40px; height: 40px; } .card h3 { font-size: 17px; } }
+@media (hover: hover) and (pointer: fine) { .card:hover { transform: translateY(-4px); border-color: #aacbb6; box-shadow: 0 16px 36px #123c240c; } }
+@media (prefers-reduced-motion: reduce) { .fill { transform: none !important; } .marker { transform: none !important; transition: none; } .step { opacity: 1 !important; transform: none !important; } .card, .card:hover { transform: none; transition: none; } }
 @media print { .fill { transform: none !important; } .step { opacity: 1 !important; transform: none !important; } }
