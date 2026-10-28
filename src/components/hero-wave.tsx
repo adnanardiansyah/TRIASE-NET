@@ -7,21 +7,28 @@ export function HeroWave() {
     <div className={styles.track} data-wave-track="">
       {/* Identical endpoint heights and tangents repeat at exactly half the track. */}
       {[0, 1].map((copy) => <svg key={copy} viewBox="0 0 1200 120" preserveAspectRatio="none" focusable="false">
-        <path d="M0 40 C200 16 400 16 600 40 S1000 64 1200 40 V120 H0 Z" fill="#064E3B" fillOpacity=".2" />
+        <path d="M0 38 C200 6 400 6 600 38 S1000 70 1200 38 V120 H0 Z" fill="#6EE7B7" fillOpacity=".18" />
       </svg>)}
     </div>
     <div className={`${styles.track} ${styles.middle}`} data-wave-track="">
       {[0, 1].map((copy) => <svg key={copy} viewBox="0 0 1200 120" preserveAspectRatio="none" focusable="false">
         <defs><linearGradient id={`${gradientId}-${copy}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0F766E" stopOpacity=".75" />
-          <stop offset="55%" stopColor="#DCEBE3" stopOpacity=".85" />
+          <stop offset="0%" stopColor="#99D6C0" stopOpacity=".55" />
+          <stop offset="55%" stopColor="#DCEBE3" stopOpacity=".8" />
           <stop offset="100%" stopColor="#E8F1EC" />
         </linearGradient></defs>
         <path d="M0 58 C200 22 400 22 600 58 S1000 94 1200 58 V120 H0 Z" fill={`url(#${gradientId}-${copy})`} />
       </svg>)}
     </div>
-    <svg className={styles.foreground} viewBox="0 0 1200 120" preserveAspectRatio="none" focusable="false">
-      <path d="M0 80 C240 45 430 102 680 82 S1010 56 1200 82 V120 H0 Z" fill="var(--landing-divider-color)" />
-    </svg>
+    <div className={`${styles.track} ${styles.crest}`} data-wave-track="">
+      {[0, 1].map((copy) => <svg key={copy} viewBox="0 0 1200 120" preserveAspectRatio="none" focusable="false">
+        <path d="M0 66 C200 42 400 42 600 66 S1000 90 1200 66 V120 H0 Z" fill="#E8F1EC" fillOpacity=".48" />
+      </svg>)}
+    </div>
+    <div className={`${styles.track} ${styles.foreground}`} data-wave-track="">
+      {[0, 1].map((copy) => <svg key={copy} viewBox="0 0 1200 120" preserveAspectRatio="none" focusable="false">
+        <path d="M0 84 C200 60 400 60 600 84 S1000 108 1200 84 V120 H0 Z" fill="var(--landing-divider-color)" />
+      </svg>)}
+    </div>
   </div>;
 }

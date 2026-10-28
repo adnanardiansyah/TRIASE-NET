@@ -7,10 +7,11 @@
   overflow: hidden;
   pointer-events: none;
 }
-.track { position: absolute; inset: 0 auto 0 0; display: flex; width: 200%; height: 100%; animation: drift-right 14s linear infinite; }
-.middle { animation-duration: 20s; animation-direction: reverse; }
+.track { position: absolute; inset: 0 auto 0 0; display: flex; width: 200%; height: 100%; animation: drift-right 9s linear infinite; }
+.middle { animation-duration: 12s; animation-direction: reverse; animation-delay: -4s; }
+.crest { animation-duration: 7s; animation-delay: -3s; }
+.foreground { animation-duration: 10s; animation-direction: reverse; animation-delay: -6s; }
 .track svg { display: block; flex: 0 0 50%; width: 50%; height: 100%; }
-.foreground { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 @keyframes drift-right {
   from { transform: translate3d(-50%, 0, 0); }
   to { transform: translate3d(0, 0, 0); }
