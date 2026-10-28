@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { hash } from "@node-rs/argon2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "kysely";
-import { addReply, changeTicketStatus, createTicket, decryptTicket, listReplies, listTickets, ticketDetail, listNotifications, readNotifications } from "./tickets";
+import { addReply, changeTicketStatus, createTicket, decryptTicket, downloadEvidence, listReplies, listTickets, ticketDetail, listNotifications, readNotifications } from "./tickets";
 import { closeDb, getDb, withActorContext } from "./client";
 import { deviceHash } from "@/lib/ztna/access-policy";
 import type { SessionClaims } from "@/lib/auth/jwt";
@@ -192,6 +192,33 @@ describe.skipIf(!url)("PostgreSQL runtime workflow (isolated database)", () => {
       } finally {
         await admin.query("UPDATE public.satgas_profiles SET authorized_categories=enum_range(NULL::public.aduan_category) WHERE user_id=$1", [staffId]);
       }
+    }
+  });
+
+  it("encrypts structured details and evidence across all bands and audits scoped downloads", async () => {
+    const bytes = Buffer.from("%PDF-1.7\nSynthetic integration evidence");
+    for (const category of ["FASILITAS", "KEUANGAN", "PELECEHAN_SEKSUAL"] as const) {
+      const details = { timePrecision: "APPROXIMATE" as const, occurredAt: "2026-01-01T03:00:00Z", location: "Private location", expectedOutcome: "Private expected outcome" };
+      const ticket = await createTicket(owner, ua, { category, subject: "Private structured title", body: "Private chronology", details, attachments: [{ name: "private-evidence.pdf", mimeType: "application/pdf", base64: bytes.toString("base64") }] });
+      const owned = await ticketDetail(owner, ua, ticket.ticketId);
+      expect(owned.details).toEqual(details); expect(owned.attachments).toHaveLength(1);
+      expect(JSON.stringify(owned)).not.toContain(bytes.toString("base64"));
+      const descriptor = owned.attachments![0]!;
+      const metadata = await ticketDetail(staff, ua, ticket.ticketId);
+      expect(metadata.details).toBeUndefined(); expect(metadata.attachments).toBeUndefined();
+      expect(JSON.stringify(await listTickets(staff, ua))).not.toContain("Private location");
+      const decrypted = await decryptTicket(staff, ua, ticket.ticketId);
+      expect(decrypted.details).toEqual(details); expect(decrypted.attachments[0]?.name).toBe("private-evidence.pdf");
+      expect(JSON.stringify(decrypted)).not.toContain(bytes.toString("base64"));
+      expect((await downloadEvidence(owner, ua, ticket.ticketId, descriptor.id)).data).toEqual(bytes);
+      expect((await downloadEvidence(staff, ua, ticket.ticketId, descriptor.id)).data).toEqual(bytes);
+      await expect(downloadEvidence(other, ua, ticket.ticketId, descriptor.id)).rejects.toMatchObject({ status: 404 });
+      await expect(downloadEvidence(owner, ua, ticket.ticketId, randomUUID())).rejects.toMatchObject({ status: 404 });
+      await expect(downloadEvidence({ ...staff, mfaVerifiedAt: Math.floor(Date.now() / 1000) - 901 }, ua, ticket.ticketId, descriptor.id)).rejects.toMatchObject({ code: "STEP_UP_REQUIRED" });
+      const raw = await admin.query("SELECT attachment_count,body_ciphertext FROM public.aduan WHERE ticket_code=$1", [ticket.ticketId]);
+      expect(raw.rows[0].attachment_count).toBe(1); expect(raw.rows[0].body_ciphertext.toString()).not.toContain("Private location");
+      const logs = await admin.query("SELECT count(*)::int AS total FROM public.ztna_audit_logs WHERE ticket_code=$1 AND action='ADUAN_ATTACHMENT_READ'", [ticket.ticketId]);
+      expect(logs.rows[0].total).toBe(2);
     }
   });
 

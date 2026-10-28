@@ -1,12 +1,8 @@
 import { z } from "zod";
-import { ADUAN_CATEGORY, ADUAN_STATUS } from "@/lib/domain/enums";
+import { ADUAN_STATUS } from "@/lib/domain/enums";
 import { ApiError } from "./errors";
 
-export const createTicketSchema = z.object({
-  subject: z.string().trim().min(1).max(200),
-  category: z.enum(ADUAN_CATEGORY),
-  body: z.string().trim().min(1).max(8000),
-}).strict();
+export { createComplaintSchema as createTicketSchema } from "@/lib/complaint-payload";
 
 export const changeStatusSchema = z.object({
   status: z.enum(ADUAN_STATUS),

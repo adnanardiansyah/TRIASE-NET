@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Eye, Loader2, ShieldAlert } from "lucide-react";
+import { ComplaintContent } from "./complaint-content";
+import type { ComplaintDetails, EvidenceDescriptor } from "@/lib/complaint-payload";
 import { MfaStepUp } from "./mfa-step-up";
 
 /**
@@ -13,6 +15,8 @@ import { MfaStepUp } from "./mfa-step-up";
  * pernah memilih ciphertext-nya sendiri.
  */
 export function StaffDecryptPanel({ ticketId }: { ticketId: string }) {
+  const [details, setDetails] = useState<ComplaintDetails | undefined>();
+  const [attachments, setAttachments] = useState<EvidenceDescriptor[]>([]);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
   const [audit, setAudit] = useState<string>("");
@@ -38,6 +42,8 @@ export function StaffDecryptPanel({ ticketId }: { ticketId: string }) {
         code?: string;
         subject?: string;
         decryptedPreview?: string;
+        details?: ComplaintDetails;
+        attachments?: EvidenceDescriptor[];
         audit?: { id: string; at: string };
       };
 
@@ -48,6 +54,7 @@ export function StaffDecryptPanel({ ticketId }: { ticketId: string }) {
       }
 
       setPreview(result.decryptedPreview ?? "");
+      setDetails(result.details); setAttachments(result.attachments ?? []);
       setSubject(result.subject ?? "");
       setStepUp(false);
       setAudit(
@@ -97,7 +104,7 @@ export function StaffDecryptPanel({ ticketId }: { ticketId: string }) {
       {preview ? (
         <div className="mt-4 animate-in fade-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none" role="status">
           {subject && <h3 className="mb-2 break-words text-sm font-semibold text-zinc-900">{subject}</h3>}
-          <p className="break-words text-sm leading-7 whitespace-pre-wrap text-zinc-700">{preview}</p>
+          <ComplaintContent body={preview} details={details} attachments={attachments} ticketId={ticketId} />
           {audit ? <p className="mt-3 text-xs text-zinc-500">{audit}</p> : null}
         </div>
       ) : null}

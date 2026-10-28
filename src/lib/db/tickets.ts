@@ -1,12 +1,11 @@
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { sql, type Kysely } from "kysely";
-import { z } from "zod";
 import type { SessionClaims } from "@/lib/auth/jwt";
 import { ApiError } from "@/lib/api/errors";
 import { getPseudonymHmacKey } from "@/lib/crypto/pseudonym";
 import { getKekMaterial } from "@/lib/crypto/kek";
 import { decodeAdaptiveCipher, decryptTicketPayload, encodeAdaptiveCipher, encryptTicketPayload, type AdaptiveCipher } from "@/lib/crypto/ticket-cipher";
-import { ADUAN_CLOSED_STATUS, RETENTION_DAYS_BY_RISK, type AduanCategory, type AduanStatus, type AuditAction } from "@/lib/domain/enums";
+import { ADUAN_CLOSED_STATUS, RETENTION_DAYS_BY_RISK, type AduanStatus, type AuditAction } from "@/lib/domain/enums";
 import { getRiskBand } from "@/lib/crypto/adaptive";
 import { assertFreshMfa, assertSessionContext, assertStaffAccess, submissionRisk, type StaffAccess } from "@/lib/ztna/access-policy";
 import { formatTicketStatus } from "@/lib/dashboard-aggregates";
@@ -14,6 +13,8 @@ import { recentNotifications, NOTIFICATION_LIMIT, type AppNotification } from "@
 import { SLA_TARGET_DAYS, ticketDeadline } from "@/lib/ticket-sla";
 import { canTransitionStatus } from "@/lib/ticket-workflow";
 import type { TicketMetadata } from "@/lib/ticket-types";
+import { createComplaintSchema, storedComplaintSchema, evidenceDescriptors, type CreateComplaintInput, type ComplaintDetails, type EvidenceDescriptor, type StoredComplaint } from "@/lib/complaint-payload";
+import { prepareEvidence } from "@/lib/complaint-evidence";
 import { resolveActorId } from "./actors";
 import { withActorContext } from "./client";
 import type { Aduan, Database } from "./types";
@@ -25,7 +26,7 @@ type EncryptedRow = TicketRow & Pick<Aduan, typeof cipherColumns[number]>;
 type Context = { trx: Kysely<Database>; session: SessionClaims; pseudonym: string | null; profile?: StaffAccess };
 export interface TimelineEntry { id: string; fromStatus: AduanStatus | null; toStatus: AduanStatus; actorRole: string | null; createdAt: string }
 export interface ReplyView { id: string; authorRole: string; body: string; createdAt: string }
-export interface TicketDetail { ticket: TicketMetadata; body?: string; timeline: TimelineEntry[] }
+export interface TicketDetail { ticket: TicketMetadata; body?: string; details?: ComplaintDetails; attachments?: EvidenceDescriptor[]; timeline: TimelineEntry[] }
 
 function pseudonymFor(identity: string): string {
   const key = Buffer.from(getPseudonymHmacKey(), "base64");
@@ -125,11 +126,11 @@ async function cipherFor(ctx: Context, row: EncryptedRow): Promise<AdaptiveCiphe
   };
 }
 
-async function plaintext(ctx: Context, row: EncryptedRow): Promise<{ subject: string; body: string }> {
+async function plaintext(ctx: Context, row: EncryptedRow): Promise<StoredComplaint> {
   const key = keyMaterial(row.kek_version);
   const cipher = await cipherFor(ctx, row);
   try {
-    return z.object({ subject: z.string(), body: z.string() }).parse(JSON.parse(decryptTicketPayload(key, cipher, row.risk_score, bodyAad(row.ticket_code, row.pseudonym_id, row.category, row.risk_score))));
+    return storedComplaintSchema.parse(JSON.parse(decryptTicketPayload(key, cipher, row.risk_score, bodyAad(row.ticket_code, row.pseudonym_id, row.category, row.risk_score))));
   } catch { throw new ApiError(422, "Isi aduan gagal diverifikasi. Data atau kunci tidak cocok.", "CIPHERTEXT_INVALID"); }
 }
 
@@ -149,8 +150,12 @@ export async function listTickets(session: SessionClaims, userAgent: string): Pr
   });
 }
 
-export async function createTicket(session: SessionClaims, userAgent: string, input: { subject: string; category: AduanCategory; body: string }) {
+export async function createTicket(session: SessionClaims, userAgent: string, input: CreateComplaintInput) {
   if (session.role !== "MAHASISWA") throw new ApiError(403, "Hanya mahasiswa yang dapat membuat aduan.");
+  const parsed = createComplaintSchema.safeParse(input);
+  if (!parsed.success) throw new ApiError(400, "Data aduan tidak valid.", "VALIDATION_ERROR");
+  input = parsed.data;
+  const attachments = prepareEvidence(input.attachments);
   return actor(session, userAgent, async (ctx) => {
     const id = randomUUID();
     const code = `TRX-${new Date().getUTCFullYear()}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -159,10 +164,11 @@ export async function createTicket(session: SessionClaims, userAgent: string, in
     const registered = await ctx.trx.selectFrom("kek_versions").select("version").where("version", "=", version).where("status", "=", "ACTIVE").executeTakeFirst();
     if (!registered) throw new ApiError(503, "Versi kunci aktif belum terdaftar di database.");
     const aad = bodyAad(code, ctx.pseudonym!, input.category, risk);
-    const encrypted = encryptTicketPayload(keyMaterial(), JSON.stringify({ subject: input.subject, body: input.body }), risk, aad);
+    const encrypted = encryptTicketPayload(keyMaterial(), JSON.stringify({ subject: input.subject, body: input.body, ...(input.details ? { details: input.details } : {}), ...(attachments.length ? { attachments } : {}) }), risk, aad);
     const p = encrypted.primary;
     const created = new Date();
     await ctx.trx.insertInto("aduan").values({
+      attachment_count: attachments.length,
       id, ticket_code: code, pseudonym_id: ctx.pseudonym!, category: input.category,
       risk_score: risk, ztna_risk_score: risk, crypto_algorithm: encrypted.algorithm,
       risk_factors: { category: input.category, policy: "submission-v1" },
@@ -194,6 +200,8 @@ export async function ticketDetail(session: SessionClaims, userAgent: string, co
     if (session.role === "MAHASISWA") {
       const data = await plaintext(ctx, row);
       detail.body = data.body;
+      detail.details = data.details;
+      detail.attachments = evidenceDescriptors(data);
       detail.ticket.subject = data.subject;
     }
     await audit(ctx, "ADUAN_METADATA_READ", "ALLOW", row);
@@ -227,7 +235,7 @@ export async function decryptTicket(session: SessionClaims, userAgent: string, c
       sensitiveAccess(ctx, row);
       const data = await plaintext(ctx, row);
       const log = await audit(ctx, "ADUAN_DECRYPT", "ALLOW", row);
-      return { data: { ...data, audit: { id: log.id, at: new Date().toISOString() }, keyId: `kek-${row.kek_version}` } };
+      return { data: { subject: data.subject, body: data.body, details: data.details, attachments: evidenceDescriptors(data), audit: { id: log.id, at: new Date().toISOString() }, keyId: `kek-${row.kek_version}` } };
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
       await audit(ctx, "ADUAN_DECRYPT_DENIED", error.code === "STEP_UP_REQUIRED" ? "CHALLENGE" : "DENY", row, error.code);
@@ -236,6 +244,18 @@ export async function decryptTicket(session: SessionClaims, userAgent: string, c
   });
   if (result.error) throw result.error;
   return result.data!;
+}
+
+export async function downloadEvidence(session: SessionClaims, userAgent: string, code: string, evidenceId: string) {
+  return actor(session, userAgent, async (ctx) => {
+    const row = await find(ctx, code);
+    sensitiveAccess(ctx, row);
+    const payload = await plaintext(ctx, row);
+    const file = payload.attachments?.find((item) => item.id === evidenceId);
+    if (!file) throw new ApiError(404, "Lampiran tidak ditemukan.");
+    await audit(ctx, "ADUAN_ATTACHMENT_READ", "ALLOW", row, `EVIDENCE_${file.id}`);
+    return { name: file.name, mimeType: file.mimeType, data: Buffer.from(file.base64, "base64") };
+  });
 }
 
 export async function listReplies(session: SessionClaims, userAgent: string, code: string, before?: { at: string; id: string }) {

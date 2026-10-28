@@ -10,6 +10,6 @@ export async function POST(request: NextRequest) {
     const session = requireSession(request);
     const { ticket } = await readJson(request, decryptSchema);
     const data = await decryptTicket(session, request.headers.get("user-agent") ?? "", ticket);
-    return NextResponse.json({ ok: true, ticket, decryptedPreview: data.body, subject: data.subject, keyId: data.keyId, audit: data.audit }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: true, ticket, decryptedPreview: data.body, subject: data.subject, details: data.details, attachments: data.attachments, keyId: data.keyId, audit: data.audit }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiErrorResponse(error); }
 }
