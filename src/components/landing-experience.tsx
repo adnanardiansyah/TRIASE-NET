@@ -27,11 +27,11 @@ export function LandingExperience() {
     event.preventDefault(); setSelected(next); tabs.current[next]?.focus();
   }
   return <section className="landing-experience mx-auto max-w-[1200px] px-5 py-16 sm:px-8 sm:py-24" aria-labelledby="experience-heading">
-    <ScrollScene distance={48}><Reveal distance={22} duration={0.65} className="landing-section-heading">
+    <ScrollScene distance={80}><Reveal distance={22} duration={0.65} className="landing-section-heading">
       <div><p className="eyebrow">Layanan aduan mahasiswa</p><h2 id="experience-heading">Satu ruang.<br /><span>Setiap suara berarti.</span></h2></div>
       <p>Sampaikan aduan tentang kehidupan kampus. Dengan identitas yang terlindungi dan penanganan yang dapat Anda ikuti.</p>
     </Reveal></ScrollScene>
-    <ScrollScene distance={64}><Reveal distance={22} duration={0.65} className="landing-experience-shell">
+    <ScrollScene distance={96} depth={0.025}><Reveal distance={22} duration={0.65} className="landing-experience-shell">
       <div className="landing-experience-tabs" role="tablist" aria-label="Kenali layanan TRIASE-Net">
         {features.map((item, index) => <button key={item.label} ref={(node) => { tabs.current[index] = node; }} id={`experience-tab-${index}`} role="tab" type="button" aria-selected={selected === index} aria-controls={`experience-panel-${index}`} tabIndex={selected === index ? 0 : -1} onClick={() => setSelected(index)} onKeyDown={(event) => navigate(event, index)}><item.icon size={17} /><span>{item.label}</span><span className="landing-tab-number" aria-hidden="true">0{index + 1}</span></button>)}
       </div>
