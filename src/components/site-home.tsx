@@ -83,7 +83,7 @@ export function SiteHome() {
     <header data-scrolled={scrolled} className="landing-header fixed inset-x-0 top-0 z-40 border-b">
       <MotionDiv aria-hidden="true" className="landing-scroll-progress" style={{ scaleX: scrollYProgress }} />
       <nav aria-label="Navigasi situs" className="mx-auto flex h-[76px] max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-8">
-        <Brand light />
+        <Brand light institution />
         <div className="landing-nav-links hidden items-center gap-1 text-xs font-medium text-zinc-500 md:flex">{navItems.map((item) => <a key={item.id} href={`#${item.id}`} aria-current={activeSection === item.id ? "location" : undefined} className="hover:text-emerald-700">{item.label}</a>)}</div>
         <div className="flex items-center gap-2"><Link href="/login" className="ui-btn ui-btn-primary">Masuk<ArrowUpRight size={14} /></Link><button className="ui-icon md:hidden" onClick={() => setMenu(!menu)} aria-controls="landing-mobile-menu" aria-expanded={menu} aria-label={menu ? "Tutup navigasi" : "Buka navigasi"}>{menu ? <X size={18} /> : <Menu size={18} />}</button></div>
       </nav>
