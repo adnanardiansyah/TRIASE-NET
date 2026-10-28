@@ -23,6 +23,13 @@ const categories = [
   { key: "KESEHATAN", label: "Kesehatan", description: "Kesehatan dan kesejahteraan mahasiswa", icon: HeartPulse },
   { key: "KEBERSAMAAN", label: "Kebersamaan", description: "Relasi dan kehidupan di kampus", icon: Handshake },
   { key: "TEKNOLOGI", label: "Teknologi", description: "Akses sistem dan layanan digital", icon: Laptop },
+  { key: "PELECEHAN_SEKSUAL", label: "Pelecehan seksual", description: "Perilaku seksual yang tidak dikehendaki", icon: ShieldAlert },
+  { key: "PELECEHAN_NON_SEKSUAL", label: "Pelecehan nonseksual", description: "Ucapan atau tindakan yang merendahkan", icon: MessageSquareText },
+  { key: "PERUNDUNGAN", label: "Perundungan (bullying)", description: "Perundungan langsung maupun di ruang digital", icon: ShieldCheck },
+  { key: "KEKERASAN_FISIK", label: "Kekerasan fisik", description: "Tindakan kekerasan terhadap fisik", icon: ShieldAlert },
+  { key: "KEKERASAN_PSIKOLOGIS", label: "Kekerasan psikologis", description: "Tekanan atau kekerasan terhadap psikologis", icon: HeartPulse },
+  { key: "DISKRIMINASI", label: "Diskriminasi", description: "Perlakuan tidak setara atau pengecualian", icon: Fingerprint },
+  { key: "ANCAMAN_INTIMIDASI", label: "Ancaman / intimidasi", description: "Ancaman, intimidasi, atau pemaksaan", icon: ShieldAlert },
   { key: "LAINNYA", label: "Lainnya", description: "Hal lain yang perlu mendapat perhatian", icon: MoreHorizontal },
 ];
 const faqs = [

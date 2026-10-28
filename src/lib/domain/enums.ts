@@ -2,7 +2,7 @@
  * Konstanta domain TRIASE-Net.
  *
  * SINGLE SOURCE OF TRUTH untuk nilai enum PostgreSQL. Nilai di sini WAJIB
- * identik dengan `database/migrations/0002_enum_types.sql`. Jangan pernah
+ * identik dengan enum database setelah seluruh migrasi diterapkan. Jangan pernah
  * menulis string enum secara literal di kode lain.
  */
 
@@ -21,6 +21,16 @@ export type UserStatus = (typeof USER_STATUS)[number];
 export const IDENTITY_PROVIDER = ["LOCAL", "OIDC", "SIB"] as const;
 export type IdentityProvider = (typeof IDENTITY_PROVIDER)[number];
 
+export const PERSONAL_SAFETY_CATEGORIES = [
+  "PELECEHAN_SEKSUAL",
+  "PELECEHAN_NON_SEKSUAL",
+  "PERUNDUNGAN",
+  "KEKERASAN_FISIK",
+  "KEKERASAN_PSIKOLOGIS",
+  "DISKRIMINASI",
+  "ANCAMAN_INTIMIDASI",
+] as const;
+
 export const ADUAN_CATEGORY = [
   "AKADEMIK",
   "KEUANGAN",
@@ -29,6 +39,7 @@ export const ADUAN_CATEGORY = [
   "KESEHATAN",
   "KEBERSAMAAN",
   "TEKNOLOGI",
+  ...PERSONAL_SAFETY_CATEGORIES,
   "LAINNYA",
 ] as const;
 export type AduanCategory = (typeof ADUAN_CATEGORY)[number];

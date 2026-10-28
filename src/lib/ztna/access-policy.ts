@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SessionClaims } from "@/lib/auth/jwt";
 import type { AduanCategory, DutyStatus } from "@/lib/domain/enums";
+import { PERSONAL_SAFETY_CATEGORIES } from "@/lib/domain/enums";
 import { ApiError } from "@/lib/api/errors";
 
 export interface StaffAccess {
@@ -41,7 +42,9 @@ export function assertFreshMfa(session: SessionClaims, required: boolean, now = 
 }
 
 export function submissionRisk(category: AduanCategory, session: SessionClaims, now = Date.now()): number {
-  const baseline = category === "KEAMANAS_INFORMASI" || category === "KESEHATAN" ? 75
+  // Sensitivity controls encryption/access, not an assessment of incident severity.
+  const sensitive = PERSONAL_SAFETY_CATEGORIES.some((value) => value === category);
+  const baseline = sensitive || category === "KEAMANAS_INFORMASI" || category === "KESEHATAN" ? 75
     : category === "KEUANGAN" || category === "KEBERSAMAAN" ? 45 : 20;
   const agePenalty = Math.min(15, Math.max(0, Math.floor((now / 1000 - session.iat) / 1800)) * 5);
   return Math.min(100, baseline + agePenalty);

@@ -203,6 +203,13 @@ const CATEGORY_LABEL: Readonly<Record<string, string>> = {
   KESEHATAN: "Kesehatan",
   KEBERSAMAAN: "Kebersamaan",
   TEKNOLOGI: "Teknologi",
+  PELECEHAN_SEKSUAL: "Pelecehan seksual",
+  PELECEHAN_NON_SEKSUAL: "Pelecehan nonseksual",
+  PERUNDUNGAN: "Perundungan (bullying)",
+  KEKERASAN_FISIK: "Kekerasan fisik",
+  KEKERASAN_PSIKOLOGIS: "Kekerasan psikologis",
+  DISKRIMINASI: "Diskriminasi",
+  ANCAMAN_INTIMIDASI: "Ancaman / intimidasi",
   LAINNYA: "Lainnya",
 };
 

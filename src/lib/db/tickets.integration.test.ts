@@ -7,6 +7,7 @@ import { addReply, changeTicketStatus, createTicket, decryptTicket, listReplies,
 import { closeDb, getDb, withActorContext } from "./client";
 import { deviceHash } from "@/lib/ztna/access-policy";
 import type { SessionClaims } from "@/lib/auth/jwt";
+import { PERSONAL_SAFETY_CATEGORIES } from "@/lib/domain/enums";
 
 const url = process.env.TRIASE_INTEGRATION_DATABASE_URL;
 const ua = "integration-browser";
@@ -127,9 +128,12 @@ describe.skipIf(!url)("PostgreSQL runtime workflow (isolated database)", () => {
     await admin.query("UPDATE public.satgas_profiles SET duty_status='ON_DUTY', authorized_categories=ARRAY['KEUANGAN']::public.aduan_category[] WHERE user_id=$1", [staffId]);
     await expect(decryptTicket(staff, ua, created.ticketId)).rejects.toMatchObject({ status: 404 });
     await admin.query("UPDATE public.satgas_profiles SET authorized_categories=enum_range(NULL::public.aduan_category) WHERE user_id=$1", [staffId]);
-    await admin.query("UPDATE public.users SET status='SUSPENDED' WHERE id=$1", [staffId]);
-    await expect(decryptTicket(staff, ua, created.ticketId)).rejects.toMatchObject({ code: "ACCOUNT_UNAVAILABLE" });
-    await admin.query("UPDATE public.users SET status='ACTIVE' WHERE id=$1", [staffId]);
+    try {
+      await admin.query("UPDATE public.users SET status='SUSPENDED' WHERE id=$1", [staffId]);
+      await expect(decryptTicket(staff, ua, created.ticketId)).rejects.toMatchObject({ status: 401 });
+    } finally {
+      await admin.query("UPDATE public.users SET status='ACTIVE' WHERE id=$1", [staffId]);
+    }
     const logs = await admin.query("SELECT count(*)::int AS total FROM public.ztna_audit_logs WHERE decision IN ('DENY','CHALLENGE')");
     expect(logs.rows[0].total).toBeGreaterThanOrEqual(3);
   });
@@ -173,6 +177,22 @@ describe.skipIf(!url)("PostgreSQL runtime workflow (isolated database)", () => {
     const current = await ticketDetail(staff, ua, ticket.ticketId);
     await changeTicketStatus(staff, ua, ticket.ticketId, "DITOLAK", current.ticket.rowVersion!);
     expect((await listNotifications(staff, ua)).some((item) => item.ticketId === ticket.ticketId && item.kind === "OVERDUE")).toBe(false);
+  });
+
+  it("persists and encrypts the expanded categories without granting umbrella access", async () => {
+    for (const category of PERSONAL_SAFETY_CATEGORIES) {
+      const ticket = await createTicket(owner, ua, { category, subject: "Sensitive incident", body: "Protected chronology" });
+      expect(ticket.category).toBe(category);
+      expect(ticket.riskBand).toBe("HIGH");
+      expect((await ticketDetail(owner, ua, ticket.ticketId)).body).toBe("Protected chronology");
+      expect((await decryptTicket(staff, ua, ticket.ticketId)).body).toBe("Protected chronology");
+      try {
+        await admin.query("UPDATE public.satgas_profiles SET authorized_categories=ARRAY['KEBERSAMAAN']::public.aduan_category[] WHERE user_id=$1", [staffId]);
+        await expect(ticketDetail(staff, ua, ticket.ticketId)).rejects.toMatchObject({ status: 404 });
+      } finally {
+        await admin.query("UPDATE public.satgas_profiles SET authorized_categories=enum_range(NULL::public.aduan_category) WHERE user_id=$1", [staffId]);
+      }
+    }
   });
 
   it("keeps the database audit hash chain intact", async () => {
