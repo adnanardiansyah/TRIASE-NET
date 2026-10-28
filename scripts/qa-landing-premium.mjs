@@ -106,7 +106,7 @@ for (const viewport of [{ name: "desktop", width: 1440, height: 900 }, { name: "
     results.push({viewport,layout,tabs,endKey,homeKey,anchors,faq,mobileMenu,reduced,errors:page.errors});
   } finally { await page.close(); }
 }
-const failures = results.filter(r => !r.layout.styled || r.layout.overflow || r.layout.heroTop !== 0 || r.layout.titleTop < r.layout.headerBottom || !r.layout.photoLoaded || r.layout.categoryCount !== 8 || r.layout.roles !== 3 || r.tabs.selected !== 'experience-tab-1' || r.tabs.active !== r.tabs.selected || r.tabs.visiblePanels !== 1 || !r.endKey || !r.homeKey || !r.faq || !r.mobileMenu || !r.reduced || r.anchors.some(a => !a.clearHeader || a.overflow) || r.errors.length);
+const failures = results.filter(r => !r.layout.styled || r.layout.overflow || r.layout.heroTop !== 0 || r.layout.titleTop < r.layout.headerBottom || !r.layout.photoLoaded || r.layout.categoryCount !== 15 || r.layout.roles !== 3 || r.tabs.selected !== 'experience-tab-1' || r.tabs.active !== r.tabs.selected || r.tabs.visiblePanels !== 1 || !r.endKey || !r.homeKey || !r.faq || !r.mobileMenu || !r.reduced || r.anchors.some(a => !a.clearHeader || a.overflow) || r.errors.length);
 await writeFile(resolve(output, `${label}-results.json`),JSON.stringify({results,failures},null,2));
 process.stdout.write(JSON.stringify({viewports:results.length,failures:failures.map(f=>f.viewport.name)},null,2)+'\n');
 if(failures.length) process.exitCode=1;

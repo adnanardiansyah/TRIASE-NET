@@ -1,0 +1,28 @@
+.ribbon { padding: 60px 0 72px; overflow: hidden; border-bottom: 1px solid var(--landing-divider-color); }
+.heading { max-width: 1200px; margin: 0 auto 28px; padding: 0 32px; display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.heading h2 { margin-top: 12px; font-size: clamp(26px, 3vw, 34px); line-height: 1.2; font-weight: 600; letter-spacing: -.025em; }
+.control { flex-shrink: 0; background: #ffffffa8; border: 1px solid #cbded4; color: #065f46; }
+.control:focus-visible, .viewport:focus-visible { outline: 2px solid #047857; outline-offset: 4px; }
+.control:disabled { cursor: default; opacity: .7; }
+.viewport { overflow: hidden; padding: 4px 0 16px; }
+.track { display: flex; width: max-content; animation: photo-drift 36s linear infinite; animation-play-state: paused; }
+.track[data-running="true"] { animation-play-state: running; }
+.viewport:hover .track, .viewport:focus-within .track { animation-play-state: paused; }
+.group { display: flex; gap: 20px; padding-right: 20px; }
+.frame { position: relative; flex: 0 0 400px; width: 400px; height: 270px; overflow: hidden; border-radius: 20px; background: #cbded4; }
+.frame:nth-child(2) { margin-top: 20px; }
+.frame img { object-fit: cover; transform: scale(1.55); }
+.frame::after { content: ""; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent, #062e2380); }
+.number { position: absolute; bottom: 18px; left: 20px; z-index: 1; color: #fff; font-size: 10px; font-weight: 500; letter-spacing: .12em; }
+@keyframes photo-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+@media (max-width: 640px) {
+  .ribbon { padding: 40px 0 44px; }
+  .heading { padding: 0 20px; align-items: start; flex-direction: column; gap: 20px; }
+  .frame { width: 260px; flex-basis: 260px; height: 210px; border-radius: 16px; }
+  .group { gap: 14px; padding-right: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track { animation: none; transform: none; }
+  .group[aria-hidden="true"] { display: none; }
+  .viewport { overflow-x: auto; }
+}
