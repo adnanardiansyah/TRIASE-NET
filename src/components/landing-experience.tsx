@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowUpRight, Check, Fingerprint, LockKeyhole, MessageSquareText, ShieldCheck } from "lucide-react";
 import { Reveal } from "./reveal";
+import { ScrollScene } from "./scroll-scene";
 
 const features = [
   { icon: Fingerprint, label: "Identitas", title: "Identitas berpseudonim", description: "Pseudonim menggantikan identitas pada tiket", detail: "Petugas melihat pseudonim, bukan nama atau email pelapor pada daftar aduan.", chips: ["Identitas pada tiket disamarkan", "Privasi pelapor"] },
@@ -26,11 +27,11 @@ export function LandingExperience() {
     event.preventDefault(); setSelected(next); tabs.current[next]?.focus();
   }
   return <section className="landing-experience mx-auto max-w-[1200px] px-5 py-16 sm:px-8 sm:py-24" aria-labelledby="experience-heading">
-    <Reveal distance={22} duration={0.65} className="landing-section-heading">
+    <ScrollScene distance={48}><Reveal distance={22} duration={0.65} className="landing-section-heading">
       <div><p className="eyebrow">Layanan aduan mahasiswa</p><h2 id="experience-heading">Satu ruang.<br /><span>Setiap suara berarti.</span></h2></div>
       <p>Sampaikan aduan tentang kehidupan kampus. Dengan identitas yang terlindungi dan penanganan yang dapat Anda ikuti.</p>
-    </Reveal>
-    <Reveal distance={22} duration={0.65} className="landing-experience-shell">
+    </Reveal></ScrollScene>
+    <ScrollScene distance={64}><Reveal distance={22} duration={0.65} className="landing-experience-shell">
       <div className="landing-experience-tabs" role="tablist" aria-label="Kenali layanan TRIASE-Net">
         {features.map((item, index) => <button key={item.label} ref={(node) => { tabs.current[index] = node; }} id={`experience-tab-${index}`} role="tab" type="button" aria-selected={selected === index} aria-controls={`experience-panel-${index}`} tabIndex={selected === index ? 0 : -1} onClick={() => setSelected(index)} onKeyDown={(event) => navigate(event, index)}><item.icon size={17} /><span>{item.label}</span><span className="landing-tab-number" aria-hidden="true">0{index + 1}</span></button>)}
       </div>
@@ -40,7 +41,7 @@ export function LandingExperience() {
           <div className="landing-service-visual" aria-hidden="true"><div className="landing-visual-grid" /><div className="landing-visual-orbit landing-orbit-outer" /><div className="landing-visual-orbit landing-orbit-inner" /><span className="landing-visual-node landing-node-top"><ShieldCheck size={18} /></span><span className="landing-visual-node landing-node-bottom"><MessageSquareText size={18} /></span><div className="landing-visual-core"><Icon size={48} strokeWidth={1.15} /></div><div className="landing-visual-note"><span className="landing-status-dot" />{feature.title}<span>TRIASE-Net</span></div></div>
         </div>}
       </div>)}
-    </Reveal>
+    </Reveal></ScrollScene>
   </section>;
 }
 

@@ -5,6 +5,7 @@
 .control:focus-visible, .viewport:focus-visible { outline: 2px solid #047857; outline-offset: 4px; }
 .control:disabled { cursor: default; opacity: .7; }
 .viewport { overflow: hidden; padding: 4px 0 16px; }
+.scroll { margin-left: -100px; }
 .track { display: flex; width: max-content; animation: photo-drift 36s linear infinite; animation-play-state: paused; }
 .track[data-running="true"] { animation-play-state: running; }
 .viewport:hover .track, .viewport:focus-within .track { animation-play-state: paused; }
@@ -22,6 +23,7 @@
   .group { gap: 14px; padding-right: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .scroll { margin-left: 0; }
   .track { animation: none; transform: none; }
   .group[aria-hidden="true"] { display: none; }
   .viewport { overflow-x: auto; }

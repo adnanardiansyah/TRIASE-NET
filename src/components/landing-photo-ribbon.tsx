@@ -6,6 +6,7 @@ import { useInView } from "motion/react";
 import { Pause, Play } from "lucide-react";
 import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { Reveal } from "./reveal";
+import { ScrollScene } from "./scroll-scene";
 import styles from "./landing-photo-ribbon.module.css";
 
 // Three compositions of the existing photograph, rather than unrelated stock photos.
@@ -40,6 +41,7 @@ export function LandingPhotoRibbon() {
       </button>
     </div>
     <div className={styles.viewport} tabIndex={0} role="region" aria-label="Panorama foto wisuda bergerak; gerakan berhenti saat disorot atau difokuskan">
+      <ScrollScene axis="x" distance={100} className={styles.scroll} disabled={paused}>
       <div className={styles.track} data-photo-track="" data-running={inView && visible && !paused && !reduced}>
         {[0, 1].map((copy) => <div key={copy} className={styles.group} aria-hidden={copy === 1 ? true : undefined}>
           {frames.map((frame, index) => <div key={frame.position} className={styles.frame}>
@@ -48,6 +50,7 @@ export function LandingPhotoRibbon() {
           </div>)}
         </div>)}
       </div>
+      </ScrollScene>
     </div>
   </section>;
 }
