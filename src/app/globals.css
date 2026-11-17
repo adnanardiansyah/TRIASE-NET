@@ -50,7 +50,7 @@ button:disabled { cursor: not-allowed; }
 .ui-muted { color: #849087; font-size: 12px; }
 .ui-alert { display: flex; align-items: flex-start; gap: 10px; border: 1px solid #fecdd3; border-radius: 6px; background: #fff1f2; padding: 12px 14px; color: #be123c; font-size: 13px; line-height: 1.6; }
 .ui-alert-success { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
-.ui-tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; background: #f1f5f2; color: #667a6c; font-size: 11px; font-weight: 550; white-space: nowrap; }
+.ui-tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; background: #f1f5f2; color: #667a6c; font-size: 12px; font-weight: 550; white-space: nowrap; }
 .workspace-sidebar { width: 236px; background: #1b2520; color: #b0c0b6; }
 .workspace-nav-link { display: flex; align-items: center; gap: 11px; min-height: 43px; padding: 11px 13px; border-radius: 6px; color: #a9bab0; font-size: 12px; font-weight: 550; transition: background-color 150ms, color 150ms; }
 .workspace-nav-link:hover { color: white; background: #ffffff08; }
@@ -62,7 +62,7 @@ button:disabled { cursor: not-allowed; }
 .dashboard-tab { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; padding: 13px 0; border-bottom: 2px solid transparent; color: #89958d; font-size: 12px; font-weight: 600; }
 .dashboard-tab[aria-pressed="true"] { border-color: #047857; color: #047857; }
 .ticket-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-.ticket-table th { padding: 13px 15px; background: #f6f9f7; border-bottom: 1px solid var(--line); color: #8a978e; font-size: 10px; font-weight: 650; text-transform: uppercase; white-space: nowrap; }
+.ticket-table th { padding: 13px 15px; background: #f6f9f7; border-bottom: 1px solid var(--line); color: #8a978e; font-size: 11px; font-weight: 650; text-transform: uppercase; white-space: nowrap; }
 .ticket-table td { padding: 17px 15px; border-bottom: 1px solid #edf0ee; vertical-align: middle; }
 .ticket-table tbody tr:hover { background: #f8fbf9; }
 .trend-column { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 130px; gap: 8px; min-width: 0; }

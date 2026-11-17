@@ -59,7 +59,7 @@ export function NotificationCenter() {
   }
   return <>
     <button className="ui-icon relative" aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? "notifications-panel" : undefined} aria-label={`Notifikasi, ${unread.length} belum dibaca di daftar pembaruan${error ? ", gagal dimuat" : ""}`} onClick={() => { setOpen(true); void load(); }}>
-      <Bell size={18} />{unread.length > 0 && <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-emerald-700 px-1 text-center text-[10px] leading-5 text-white">{unread.length}</span>}
+      <Bell size={18} />{unread.length > 0 && <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-emerald-700 px-1 text-center text-xs leading-5 text-white">{unread.length}</span>}
       {error && !unread.length && <span className="absolute right-0 top-0 size-2 rounded-full bg-amber-500" />}
     </button>
     <Dialog open={open} onClose={setOpen} className="relative z-[70]">
@@ -72,10 +72,10 @@ export function NotificationCenter() {
           {loading && !items.length ? <p role="status" className="p-8 text-center text-sm text-zinc-500">Memuat pembaruan...</p> : !items.length && !error ? <p className="p-8 text-center text-sm text-zinc-500">Belum ada pembaruan.</p> : <ul className="divide-y divide-zinc-100">{items.map((item) => <li key={item.id} className={`p-5 ${item.read ? "bg-white" : "bg-emerald-50/50"}`}>
             <Link href={`/aduan/${item.ticketId}`} onClick={() => { if (!item.read) void markRead([item.id]); setOpen(false); }} className="flex items-start gap-3 rounded-md">
               <span className={`mt-1 shrink-0 ${item.kind === "OVERDUE" ? "text-amber-600" : "text-emerald-700"}`}>{item.kind === "OVERDUE" ? <Clock3 size={18} /> : item.kind === "REPLY" ? <MessageSquareText size={18} /> : <Bell size={18} />}</span>
-              <span><span className="font-mono text-[11px] font-semibold text-emerald-700">{item.ticketId}</span><span className="mt-1 block text-xs leading-6 text-zinc-700">{item.message}</span><time dateTime={item.createdAt} className="mt-2 block text-[10px] text-zinc-500">{new Date(item.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</time></span>
+              <span><span className="font-mono text-xs font-semibold text-emerald-700">{item.ticketId}</span><span className="mt-1 block text-xs leading-6 text-zinc-700">{item.message}</span><time dateTime={item.createdAt} className="mt-2 block text-xs text-zinc-500">{new Date(item.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</time></span>
               {!item.read && <span className="mt-2 ml-auto size-2 shrink-0 rounded-full bg-emerald-600"><span className="sr-only">Belum dibaca</span></span>}
             </Link>
-            {!item.read && <button disabled={pending} onClick={() => void markRead([item.id])} className="mt-3 ml-7 text-[11px] font-medium text-emerald-700 disabled:opacity-40">Tandai dibaca</button>}
+            {!item.read && <button disabled={pending} onClick={() => void markRead([item.id])} className="mt-3 ml-7 text-xs font-medium text-emerald-700 disabled:opacity-40">Tandai dibaca</button>}
           </li>)}</ul>}
         </div>
       </DialogPanel>

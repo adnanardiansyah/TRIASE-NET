@@ -12,5 +12,5 @@ export function TicketDeadline({ ticket }: { ticket: SlaTicket }) {
   const state = ticketSlaState(ticket, now ?? Date.parse(ticket.createdAt));
   if (state === "CLOSED") return null;
   const tone = state === "OVERDUE" ? "text-rose-700" : state === "DUE_SOON" ? "text-amber-700" : "text-zinc-500";
-  return <span className={`mt-2 block text-[10px] leading-5 ${tone}`}><span className="block">Target: <time dateTime={deadline}>{new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(deadline))} WIB</time></span>{now !== null && (state === "OVERDUE" ? "Lewat target · perlu ditinjau" : state === "DUE_SOON" ? "Tenggat dalam 24 jam" : "Dalam target")}</span>;
+  return <span className={`mt-2 block text-xs leading-5 ${tone}`}><span className="block">Target: <time dateTime={deadline}>{new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(deadline))} WIB</time></span>{now !== null && (state === "OVERDUE" ? "Lewat target · perlu ditinjau" : state === "DUE_SOON" ? "Tenggat dalam 24 jam" : "Dalam target")}</span>;
 }
