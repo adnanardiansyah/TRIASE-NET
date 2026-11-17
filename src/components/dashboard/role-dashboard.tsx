@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogPanel, DialogTitle, Description } from "@headlessui/react";
 import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, FilePlus2, Inbox, LayoutGrid, List, Link2, Loader2, ShieldCheck, RefreshCw, Search, ShieldAlert, SlidersHorizontal, Ticket, X, type LucideIcon } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -17,6 +17,7 @@ import { TicketDeadline } from "@/components/ticket-deadline";
 import { Reveal, RevealGroup } from "@/components/reveal";
 import { readDashboardLocation, writeDashboardLocation, type TicketView } from "@/lib/dashboard-location";
 import { DashboardOverview } from "./dashboard-overview";
+import { CountUp } from "./count-up";
 import { DashboardAnalytics } from "./dashboard-analytics";
 import { dashboardPaths, dashboardTicketLink, legacyDashboardDestination, type DashboardSection } from "@/lib/dashboard-routes";
 import { ticketSlaState } from "@/lib/ticket-sla";
@@ -28,7 +29,7 @@ const copy = {
 };
 const PAGE_SIZE = 8;
 function Metric({ label, value, note, icon: Icon, tone, href }: { label: string; value: string; note: string; icon: LucideIcon; tone: string; href: string }) {
-  return <Link href={href} className="metric dashboard-metric-link"><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-zinc-500">{label}</p><span className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}><Icon size={15} strokeWidth={1.7} /></span></div><p className="metric-value">{value}</p><p className="mt-2 text-xs text-zinc-400">{note}</p></Link>;
+  return <Link href={href} className="metric dashboard-metric-link"><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-zinc-500">{label}</p><span className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}><Icon size={15} strokeWidth={1.7} /></span></div><p className="metric-value"><CountUp value={value} /></p><p className="mt-2 text-xs text-zinc-400">{note}</p></Link>;
 }
 
 export function RoleDashboard({ role, section = "overview" }: { role: SessionRole; section?: DashboardSection }) {
@@ -87,6 +88,9 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
   // Perubahan status tercatat di audit dan bisa menutup percakapan, jadi pilihan
   // dari dropdown tidak langsung dikirim: petugas harus mengonfirmasinya dulu.
   const [confirming, setConfirming] = useState<{ ticket: TicketMetadata; status: string } | null>(null);
+  // Baris yang baru diubah statusnya disorot sebentar sebagai tanda tersimpan.
+  const [flashed, setFlashed] = useState("");
+  useEffect(() => { if (!flashed) return; const timer = setTimeout(() => setFlashed(""), 1800); return () => clearTimeout(timer); }, [flashed]);
   const [refreshed, setRefreshed] = useState<Date | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError(""); setLoadStatus(null);
@@ -140,11 +144,25 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
       if (!response.ok) { setError(data.message ?? "Status belum dapat diperbarui."); if (response.status === 409) await load(); return; }
       setRows((current) => current.map((row) => row.ticketId === ticket.ticketId ? { ...row, status: data.status, updatedAt: data.updatedAt, rowVersion: data.rowVersion } : row));
       window.dispatchEvent(new Event("triase:ticket-updated"));
+      setFlashed(ticket.ticketId);
       setNotice(`${ticket.ticketId}: ${formatTicketStatus(data.status)}.`);
     } catch { setError("Perubahan belum terkonfirmasi. Muat ulang sebelum mencoba lagi."); }
     finally { setPending(""); }
   }
   const tabs = [{ key: "all", label: "Semua", count: rows.length }, { key: "active", label: "Aktif", count: active.length }, { key: "waiting", label: "Tindak lanjut", count: waiting.length }, { key: "closed", label: "Tidak aktif", count: closed.length }, ...(isStaff ? [{ key: "dueSoon", label: "Mendekati tenggat", count: dueSoon.length }, { key: "overdue", label: "Lewat target", count: sla.overdueOpen }] : [])];
+  // Latar tab aktif berupa satu elemen yang bergeser ke tab terpilih.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const tabCounts = tabs.map((tab) => tab.count).join(",");
+  useLayoutEffect(() => {
+    const measure = () => {
+      const active = tabsRef.current?.querySelector<HTMLElement>("[aria-pressed=\"true\"]");
+      setIndicator(active ? { left: active.offsetLeft, top: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight } : null);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [filters.tab, tabCounts, section]);
   return <DashboardShell role={role} title={heading.title} subtitle={heading.subtitle} actions={<>
     <span className="hidden text-xs text-zinc-400 xl:mr-3 xl:inline">{date}</span><button onClick={() => void load()} disabled={loading} title="Muat ulang data" aria-label="Muat ulang data" className="ui-icon"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
     {role === "MAHASISWA" ? <Link href="/aduan/baru" className="ui-btn ui-btn-primary"><FilePlus2 size={15} />Buat aduan</Link> : section !== "overview" ? <button onClick={download} disabled={loading || !!error || filtered.length === 0} className="ui-btn"><ArrowDownToLine size={15} />Ekspor CSV</button> : <Link href={paths.tickets} className="ui-btn ui-btn-primary"><Inbox size={15} />Lihat aduan</Link>}
@@ -180,7 +198,7 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
 
     {section === "tickets" && <section id="aduan" className="dashboard-tickets order-3 mt-7 min-w-0 scroll-mt-24 lg:order-4" aria-labelledby="ticket-list-title">
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><h2 id="ticket-list-title" className="ui-section-title">{copy[role].table}</h2><span className="ui-tag">{rows.length}</span></div>{role === "MAHASISWA" && <Link href="/aduan/lacak" className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">Lacak tiket<ArrowUpRight size={13} /></Link>}</div>
-      <div role="group" aria-label="Kelompok status aduan" className="dashboard-tabs mt-2">{tabs.map((tab) => <button key={tab.key} type="button" id={`tab-${tab.key}`} aria-pressed={filters.tab === tab.key} aria-controls="ticket-panel" onClick={() => { setFilters((current) => ({ ...current, tab: tab.key, status: "" })); setPage(1); }} className="dashboard-tab">{tab.label}<span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-400">{tab.count}</span></button>)}</div>
+      <div ref={tabsRef} role="group" aria-label="Kelompok status aduan" className="dashboard-tabs mt-2" data-indicator={indicator ? "" : undefined}>{indicator && <span aria-hidden="true" className="dashboard-tab-indicator" style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }} />}{tabs.map((tab) => <button key={tab.key} type="button" id={`tab-${tab.key}`} aria-pressed={filters.tab === tab.key} aria-controls="ticket-panel" onClick={() => { setFilters((current) => ({ ...current, tab: tab.key, status: "" })); setPage(1); }} className="dashboard-tab">{tab.label}<span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-400">{tab.count}</span></button>)}</div>
       <div id="ticket-panel" aria-labelledby={`tab-${filters.tab}`}>
         <div className="flex flex-wrap items-center gap-3 py-4"><label className="relative min-w-0 flex-1 basis-52"><Search size={15} className="pointer-events-none absolute left-3 top-3.5 text-zinc-400" /><span className="sr-only">Cari aduan</span><input ref={searchInput} className="ui-input pl-9" placeholder="Cari nomor tiket, judul, atau pseudonim..." value={filters.query} onChange={(event) => setFilter("query", event.target.value)} /></label><label><span className="sr-only">Urutkan aduan</span><select value={filters.sort} onChange={(event) => setFilter("sort", event.target.value)} className="ui-input min-w-[146px]"><option value="newest">Terbaru</option><option value="oldest">Terlama</option><option value="risk">Risiko tertinggi</option><option value="deadline">Tenggat terdekat</option></select></label><button aria-expanded={advanced} aria-controls="ticket-filters" onClick={() => setAdvanced(!advanced)} className={`ui-btn ${advanced ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}><SlidersHorizontal size={14} />Filter</button>{activeFilters && <button className="ui-icon" onClick={() => { setFilters((current) => ({ ...INITIAL_FILTERS, tab: current.tab })); setPage(1); }} title="Hapus filter" aria-label="Hapus filter"><X size={14} /></button>}</div>
         {advanced && <div id="ticket-filters" className="animate-in fade-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none mb-4 grid gap-3 border-b border-zinc-200 pb-4 sm:grid-cols-2 xl:grid-cols-4">{[
@@ -194,10 +212,10 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
           ["query", filters.query ? `Cari: ${filters.query}` : ""], ["category", filters.category ? formatTicketCategory(filters.category) : ""], ["status", filters.status ? formatTicketStatus(filters.status) : ""], ["risk", filters.risk ? `Risiko ${formatRiskBand(filters.risk)}` : ""], ["period", filters.period ? `${filters.period} hari terakhir` : ""],
         ] as const).filter(([, label]) => label).map(([key, label]) => <button key={key} type="button" onClick={() => setFilter(key, "")} aria-label={`Hapus filter ${label}`}>{label}<X size={12} /></button>)}</div>
         <div className={`dashboard-ticket-results ${view === "cards" ? "dashboard-cards-mode" : "overflow-x-auto"} border-y border-zinc-200 bg-white`} aria-busy={loading}>
-          {view === "cards" && <div className="dashboard-ticket-grid">{loading && !refreshed ? <p role="status" className="p-5 text-sm text-zinc-500">Memuat aduan...</p> : visible.map((ticket) => <article key={ticket.ticketId} className="dashboard-ticket-card"><div className="dashboard-ticket-card-top"><span className="font-mono text-xs text-emerald-700">{ticket.ticketId}</span><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /></div><h3><Link href={`/aduan/${ticket.ticketId}`}>{ticket.subject}</Link></h3><p>{formatTicketCategory(ticket.category)}{isStaff && <span> / {ticket.pseudonym}</span>}</p><div className="dashboard-ticket-card-meta"><RiskPill riskBand={ticket.riskBand} label={formatRiskBand(ticket.riskBand)} /><TicketDeadline ticket={ticket} /></div><div className="dashboard-ticket-card-bottom"><time dateTime={ticket.updatedAt}>{formatRelativeTime(ticket.updatedAt)}</time>{ticketActions(ticket)}</div></article>)}</div>}
+          {view === "cards" && <div className="dashboard-ticket-grid">{loading && !refreshed ? <p role="status" className="p-5 text-sm text-zinc-500">Memuat aduan...</p> : visible.map((ticket) => <article key={ticket.ticketId} className={`dashboard-ticket-card${flashed === ticket.ticketId ? " dashboard-row-flash" : ""}`}><div className="dashboard-ticket-card-top"><span className="font-mono text-xs text-emerald-700">{ticket.ticketId}</span><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /></div><h3><Link href={`/aduan/${ticket.ticketId}`}>{ticket.subject}</Link></h3><p>{formatTicketCategory(ticket.category)}{isStaff && <span> / {ticket.pseudonym}</span>}</p><div className="dashboard-ticket-card-meta"><RiskPill riskBand={ticket.riskBand} label={formatRiskBand(ticket.riskBand)} /><TicketDeadline ticket={ticket} /></div><div className="dashboard-ticket-card-bottom"><time dateTime={ticket.updatedAt}>{formatRelativeTime(ticket.updatedAt)}</time>{ticketActions(ticket)}</div></article>)}</div>}
           <div hidden={view !== "table"}>
           <table className="ticket-table min-w-[720px]"><thead><tr><th>Tiket & aduan</th><th>Kategori</th><th>Status</th><th>Risiko</th><th>Diperbarui / target</th><th className="text-right">{isStaff ? "Penanganan" : ""}</th></tr></thead><tbody>
-            {loading && !refreshed ? Array.from({ length: 4 }, (_, i) => <tr key={i}>{Array.from({ length: 6 }, (_, j) => <td key={j}><div className="h-3 w-20 animate-pulse rounded bg-zinc-100" /></td>)}</tr>) : visible.map((ticket) => <tr key={ticket.ticketId}><td><Link href={`/aduan/${ticket.ticketId}`} className="block max-w-64"><span className="whitespace-nowrap font-mono text-xs font-medium text-emerald-700">{ticket.ticketId}</span><span className="mt-1.5 block truncate font-medium text-zinc-700">{ticket.subject}</span>{isStaff && <span className="mt-1 block text-xs text-zinc-400">{ticket.pseudonym}</span>}</Link></td><td className="text-zinc-500">{formatTicketCategory(ticket.category)}</td><td><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /></td><td><RiskPill riskBand={ticket.riskBand} label={formatRiskBand(ticket.riskBand)} /></td><td className="whitespace-nowrap text-xs text-zinc-400"><time dateTime={ticket.updatedAt} title={new Date(ticket.updatedAt).toLocaleString("id-ID")}>{formatRelativeTime(ticket.updatedAt)}</time><TicketDeadline ticket={ticket} /></td><td>{ticketActions(ticket)}</td></tr>)}
+            {loading && !refreshed ? Array.from({ length: 4 }, (_, i) => <tr key={i}>{Array.from({ length: 6 }, (_, j) => <td key={j}><div className="h-3 w-20 animate-pulse rounded bg-zinc-100" /></td>)}</tr>) : visible.map((ticket) => <tr key={ticket.ticketId} className={flashed === ticket.ticketId ? "dashboard-row-flash" : undefined}><td><Link href={`/aduan/${ticket.ticketId}`} className="block max-w-64"><span className="whitespace-nowrap font-mono text-xs font-medium text-emerald-700">{ticket.ticketId}</span><span className="mt-1.5 block truncate font-medium text-zinc-700">{ticket.subject}</span>{isStaff && <span className="mt-1 block text-xs text-zinc-400">{ticket.pseudonym}</span>}</Link></td><td className="text-zinc-500">{formatTicketCategory(ticket.category)}</td><td><StatusPill status={ticket.status} label={formatTicketStatus(ticket.status)} /></td><td><RiskPill riskBand={ticket.riskBand} label={formatRiskBand(ticket.riskBand)} /></td><td className="whitespace-nowrap text-xs text-zinc-400"><time dateTime={ticket.updatedAt} title={new Date(ticket.updatedAt).toLocaleString("id-ID")}>{formatRelativeTime(ticket.updatedAt)}</time><TicketDeadline ticket={ticket} /></td><td>{ticketActions(ticket)}</td></tr>)}
           </tbody></table></div>
           {!loading && !error && visible.length === 0 && <div className="flex flex-col items-center px-5 py-12 text-center"><span className="mb-3 grid size-12 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Ticket size={23} strokeWidth={1.4} /></span><h3 className="text-sm font-semibold">{rows.length ? "Tidak ada aduan yang cocok" : "Belum ada aduan"}</h3><p className="mt-2 max-w-sm text-xs leading-6 text-zinc-400">{rows.length ? "Coba kata pencarian atau pilihan filter lainnya." : role === "MAHASISWA" ? "Aduan yang Anda kirim akan tampil di sini." : "Antrean akan terisi saat aduan tersedia dalam kewenangan Anda."}</p>{role === "MAHASISWA" && !rows.length && <Link href="/aduan/baru" className="ui-btn ui-btn-primary mt-5"><FilePlus2 size={14} />Buat aduan pertama</Link>}</div>}
         </div>

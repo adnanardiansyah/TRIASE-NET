@@ -200,3 +200,26 @@
  .dashboard-panel-heading { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .dashboard-chart-column > div, .dashboard-metric-link { transition: none; } }
+
+/* --- Paket B: gerak halus di dashboard ----------------------------------- */
+/* Angka metrik: `* { letter-spacing: 0 }` me-reset span, jadi warisi dari .metric-value. */
+.count-up { letter-spacing: inherit; }
+
+/* Tab: satu latar yang bergeser ke tab aktif, menggantikan latar per tombol. */
+.premium-workspace .dashboard-tabs { position: relative; }
+.premium-workspace .dashboard-tab { position: relative; z-index: 1; }
+.dashboard-tab-indicator { position: absolute; z-index: 0; border-radius: 10px; background: #e8f3ec; box-shadow: inset 0 0 0 1px #d2e6da; transition: left 320ms cubic-bezier(.22, 1, .36, 1), width 320ms cubic-bezier(.22, 1, .36, 1), top 320ms cubic-bezier(.22, 1, .36, 1); pointer-events: none; }
+.premium-workspace .dashboard-tabs[data-indicator] .dashboard-tab[aria-pressed="true"] { background: transparent; box-shadow: none; }
+
+/* Status baru tersimpan: baris/kartu disorot hijau lalu memudar, badge muncul. */
+.ticket-table tbody tr.dashboard-row-flash td { animation: dashboard-row-flash 1.8s ease-out; }
+.dashboard-ticket-card.dashboard-row-flash { animation: dashboard-card-flash 1.8s ease-out; }
+.dashboard-row-flash [data-status-pill] { animation: dashboard-pill-in 450ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes dashboard-row-flash { from { background-color: #dcf5e6; } to { background-color: transparent; } }
+@keyframes dashboard-card-flash { from { box-shadow: 0 0 0 3px #34d39966; } to { box-shadow: 0 0 0 3px #34d39900; } }
+@keyframes dashboard-pill-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tab-indicator { transition: none; }
+  .dashboard-row-flash [data-status-pill] { animation: none; }
+}
