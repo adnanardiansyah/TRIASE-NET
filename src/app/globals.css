@@ -107,7 +107,6 @@ button:disabled { cursor: not-allowed; }
 html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
 .landing-page section[id] { scroll-margin-top: calc(100px + env(safe-area-inset-top, 0px)); }
 .landing-hero:has([data-running="false"]) [data-wave-track], .landing-hero:has([data-running="false"]) .landing-scroll-arrow { animation-play-state: paused; }
-.landing-feature { transition: translate 250ms cubic-bezier(.22, 1, .36, 1), box-shadow 250ms, border-color 250ms; }
 .landing-page [data-reveal]:focus-within { opacity: 1 !important; transform: none !important; filter: none !important; }
 .landing-header > nav:first-of-type { height: 84px; }
 .landing-header .brand { gap: 11px; }
@@ -134,7 +133,6 @@ html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
 }
 .landing-page .ui-btn { border-radius: 999px; padding: 12px 22px; min-height: 44px; }
 .landing-page .eyebrow { letter-spacing: .14em; font-size: 10px; }
-.landing-info { background: var(--landing-divider-color); }
 .landing-scroll { bottom: calc(var(--hero-wave-height) + 16px); }
 .landing-hero { position: relative; overflow: hidden; isolation: isolate; min-height: 100svh; display: flex; align-items: center; background-color: #163c2d; color: white; }
 .landing-hero-photo { z-index: 0; object-fit: cover; object-position: center 62%; pointer-events: none; }
@@ -148,14 +146,9 @@ html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
 .landing-photo-caption strong { font-weight: 500; color: #fff; }
 .landing-caption-line { width: 42px; height: 1px; background: #e7d3a8; }
 .landing-scroll { bottom: calc(var(--hero-wave-height) + 16px); }
-.landing-info > div { padding-block: 32px; }
-.landing-info > div > div { padding: 6px 18px; border-left: 1px solid #dce3dc; }
 .landing-page h2 { letter-spacing: -.035em; }
 .landing-page #layanan { padding-block: 96px; }
 .landing-page #layanan > div:nth-child(2) { gap: 16px; }
-.landing-page .landing-category { margin-right: 0; padding: 24px 20px; border: 1px solid #e6ebe5; border-radius: 16px; background: #F7FAF8; }
-.landing-page .landing-category::after { display: none; }
-.landing-page .landing-category:hover { border-color: #a9c3b0; background: #f0f6ef; }
 .landing-page #alur { background: #F7FAF8; }
 .landing-page #privasi { padding-block: 96px; }
 .landing-scroll-arrow { animation: landing-arrow-float 2.5s ease-in-out infinite alternate; }
@@ -166,34 +159,22 @@ html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
 @keyframes landing-content-in { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 .landing-page .ui-btn { transition: transform 240ms cubic-bezier(.22, 1, .36, 1), background-color 240ms, border-color 240ms, color 240ms, box-shadow 240ms; }
 .landing-page .ui-btn:active { transform: translate3d(0, 0, 0) scale(.98); }
-.landing-page .ui-btn svg, .landing-category svg { transition: transform 200ms ease-out, color 150ms; }
-.landing-category { position: relative; transition: transform 250ms cubic-bezier(.22, 1, .36, 1), background-color 250ms, border-color 250ms, box-shadow 250ms; }
-.landing-category::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #059669; transform: scaleX(0); transform-origin: left; transition: transform 240ms ease-out; }
-.landing-category:focus-visible { box-shadow: 0 8px 24px #153b2114; }
-.landing-category:focus-visible { border-color: #73ac8b; }
+.landing-page .ui-btn svg { transition: transform 200ms ease-out, color 150ms; }
 .landing-page .ui-btn:focus-visible { box-shadow: 0 8px 20px #123d3024; }
 .landing-caption-line { background: #b9e3cd; }
 @keyframes landing-caption-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -3px, 0); } }
-.landing-category:focus-visible::after { transform: scaleX(1); }
-.landing-category:focus-visible h3 svg { transform: translate3d(2px, -2px, 0); }
 .landing-faq[open] > p { animation: landing-content-in 220ms ease-out both; }
 @media (hover: hover) and (pointer: fine) {
   .landing-page .ui-btn:hover { transform: translate3d(0, -2px, 0); box-shadow: 0 8px 20px #123d3024; }
   .landing-page .ui-btn:hover svg { transform: translate3d(3px, -1px, 0); }
-  .landing-feature:hover { translate: 0 -4px; box-shadow: 0 8px 18px #153b210a; border-left-color: #059669; }
-  .landing-category:hover { background: #f5faf7; transform: translate3d(0, -4px, 0); box-shadow: 0 12px 28px #153b2110; }
-  .landing-category:hover::after { transform: scaleX(1); }
-  .landing-category:hover > span svg { transform: translate3d(0, -3px, 0); }
-  .landing-category:hover h3 svg { transform: translate3d(2px, -2px, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   html:has(.landing-page) { scroll-behavior: auto !important; }
   .landing-page [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; }
-  .landing-feature { translate: none !important; transition: none !important; }
   .landing-caption-line { animation: none !important; transform: none; }
   .landing-hero-sequence > *, .landing-faq[open] > p { animation: none !important; }
-  .landing-caption-line, .landing-category, .landing-page .ui-btn, .landing-page .ui-btn svg, .landing-category svg, .landing-category::after { transition: none !important; }
-  .landing-page .ui-btn:hover, .landing-page .ui-btn:active, .landing-page .ui-btn:hover svg, .landing-category:hover, .landing-category:hover svg, .landing-category:focus-visible svg { transform: none; }
+  .landing-caption-line, .landing-page .ui-btn, .landing-page .ui-btn svg { transition: none !important; }
+  .landing-page .ui-btn:hover, .landing-page .ui-btn:active, .landing-page .ui-btn:hover svg { transform: none; }
 }
 @media (max-width: 1023px) {
   .landing-page { --hero-wave-height: 80px; }
@@ -210,7 +191,6 @@ html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
   .landing-wordmark { font-size: 10px; letter-spacing: .03em; }
   .landing-intro { max-width: 340px; font-size: 14px; }
   .landing-page #layanan, .landing-page #privasi { padding-block: 64px; }
-  .landing-info > div > div { padding-left: 12px; }
 }
 @media (max-width: 360px) {
   .landing-page > header > nav { padding-inline: 12px; gap: 8px; }
