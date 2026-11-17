@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import type { PointerEvent } from "react";
 import {
   ArrowUpRight,
   Bandage,
@@ -54,9 +57,20 @@ const groups: Group[] = [
   ] },
 ];
 
+// Sorotan mengikuti kursor: satu listener untuk semua kartu, posisi disimpan
+// sebagai CSS variable sehingga React tidak perlu render ulang.
+function trackSpotlight(event: PointerEvent<HTMLDivElement>) {
+  if (event.pointerType !== "mouse") return;
+  const card = (event.target as HTMLElement).closest<HTMLElement>("[data-spotlight]");
+  if (!card) return;
+  const bounds = card.getBoundingClientRect();
+  card.style.setProperty("--spot-x", `${event.clientX - bounds.left}px`);
+  card.style.setProperty("--spot-y", `${event.clientY - bounds.top}px`);
+}
+
 export function LandingCategories() {
   return <>
-    <div className={styles.groups}>
+    <div className={styles.groups} onPointerMove={trackSpotlight}>
       {groups.map((group, index) => <section key={group.title} className={styles.group} aria-labelledby={`category-group-${index}`} data-sensitive={group.sensitive || undefined}>
         <Reveal distance={12} duration={0.5} className={styles.head}>
           <span className={styles.count} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
@@ -65,7 +79,7 @@ export function LandingCategories() {
         </Reveal>
         <RevealGroup stagger={0.05} amount={0.1} className={styles.grid}>
           {group.items.map((item) => <Reveal key={item.key} distance={12} duration={0.5}>
-            <Link href={`/aduan/baru?category=${item.key}`} className={styles.card}>
+            <Link href={`/aduan/baru?category=${item.key}`} className={styles.card} data-spotlight="">
               <span className={styles.icon}><item.icon size={19} strokeWidth={1.5} aria-hidden="true" /></span>
               <span className={styles.text}><strong>{item.label}</strong><span>{item.example}</span></span>
               <ArrowUpRight size={15} className={styles.arrow} aria-hidden="true" />

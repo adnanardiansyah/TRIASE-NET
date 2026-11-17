@@ -37,3 +37,8 @@
   .card, .arrow { transition: none; }
   .card:hover, .card:hover .arrow { transform: none; }
 }
+/* Sorotan lembut yang mengikuti kursor; hanya untuk perangkat dengan mouse. */
+.card { position: relative; isolation: isolate; }
+.card::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(240px circle at var(--spot-x, 50%) var(--spot-y, 50%), #34d39926, transparent 70%); opacity: 0; transition: opacity 250ms; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) { .card:hover::before { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .card::before { transition: none; } }

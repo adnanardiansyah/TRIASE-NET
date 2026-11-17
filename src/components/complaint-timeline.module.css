@@ -32,3 +32,9 @@
 @media (hover: hover) and (pointer: fine) { .card:hover { transform: translateY(-4px); border-color: #aacbb6; box-shadow: 0 16px 36px #123c240c; } }
 @media (prefers-reduced-motion: reduce) { .fill { transform: none !important; } .marker { transform: none !important; transition: none; } .step { opacity: 1 !important; transform: none !important; } .card, .card:hover { transform: none; transition: none; } }
 @media print { .fill { transform: none !important; } .step { opacity: 1 !important; transform: none !important; } }
+/* Titik bercahaya di ujung garis yang sedang terisi. */
+.headTrack { position: absolute; pointer-events: none; z-index: 0; }
+.head { position: absolute; width: 10px; height: 10px; margin: -4px 0 0 -5px; border-radius: 50%; background: #047857; box-shadow: 0 0 0 4px #04785722, 0 0 14px 2px #34d39966; opacity: 0; transition: opacity 250ms; }
+.head[data-visible="true"] { opacity: 1; }
+.vertical .head { margin: -5px 0 0 -4px; }
+@media (prefers-reduced-motion: reduce) { .headTrack { display: none; } }
