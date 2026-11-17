@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dialog, DialogPanel, DialogTitle, Description } from "@headlessui/react";
 import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, FilePlus2, Inbox, LayoutGrid, List, Link2, Loader2, ShieldCheck, RefreshCw, Search, ShieldAlert, SlidersHorizontal, Ticket, X, type LucideIcon } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { RiskPill, StatusPill } from "./pill";
@@ -83,6 +84,9 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
     if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(window.history.state, "", next);
   }, [filters, view, locationReady, section]);
   const [pending, setPending] = useState("");
+  // Perubahan status tercatat di audit dan bisa menutup percakapan, jadi pilihan
+  // dari dropdown tidak langsung dikirim: petugas harus mengonfirmasinya dulu.
+  const [confirming, setConfirming] = useState<{ ticket: TicketMetadata; status: string } | null>(null);
   const [refreshed, setRefreshed] = useState<Date | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError(""); setLoadStatus(null);
@@ -121,7 +125,7 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
     catch { setNotice("Salin tautan dari bilah alamat browser. Filter tersimpan pada URL; kata pencarian tidak disertakan."); }
   }
   function ticketActions(ticket: TicketMetadata) {
-    return <div className="flex items-center justify-end gap-2">{isStaff && STATUS_TRANSITIONS[ticket.status].length > 0 && <select aria-label={`Ubah status ${ticket.ticketId}`} value="" disabled={!!pending || loading || !!error} onChange={(event) => void changeStatus(ticket, event.target.value)} className="max-w-[150px] rounded border border-zinc-200 bg-white px-2 py-2 text-[10px] text-zinc-600"><option value="">{pending === ticket.ticketId ? "Menyimpan..." : "Ubah status"}</option>{STATUS_TRANSITIONS[ticket.status].map((status) => <option key={status} value={status}>{formatTicketStatus(status)}</option>)}</select>}<Link href={`/aduan/${ticket.ticketId}`} className="ui-icon" title="Buka detail aduan" aria-label={`Buka detail ${ticket.ticketId}`}><ArrowUpRight size={14} /></Link></div>;
+    return <div className="flex items-center justify-end gap-2">{isStaff && STATUS_TRANSITIONS[ticket.status].length > 0 && <select aria-label={`Ubah status ${ticket.ticketId}`} value="" disabled={!!pending || loading || !!error} onChange={(event) => { if (event.target.value) setConfirming({ ticket, status: event.target.value }); }} className="max-w-[150px] rounded border border-zinc-200 bg-white px-2 py-2 text-[10px] text-zinc-600"><option value="">{pending === ticket.ticketId ? "Menyimpan..." : "Ubah status"}</option>{STATUS_TRANSITIONS[ticket.status].map((status) => <option key={status} value={status}>{formatTicketStatus(status)}</option>)}</select>}<Link href={`/aduan/${ticket.ticketId}`} className="ui-icon" title="Buka detail aduan" aria-label={`Buka detail ${ticket.ticketId}`}><ArrowUpRight size={14} /></Link></div>;
   }
   function download() {
     const url = URL.createObjectURL(new Blob([ticketCsv(filtered)], { type: "text/csv;charset=utf-8" }));
@@ -202,5 +206,22 @@ export function RoleDashboard({ role, section = "overview" }: { role: SessionRol
     </section>}
     </>}
     </div>
+    <Dialog open={!!confirming} onClose={() => setConfirming(null)} className="relative z-50">
+      <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="animate-in fade-in zoom-in-95 duration-150 ease-out motion-reduce:animate-none w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-xl">
+          <DialogTitle className="text-base font-semibold text-zinc-900">Ubah status aduan?</DialogTitle>
+          {confirming && <Description as="div" className="mt-3 space-y-3 text-sm leading-6 text-zinc-600">
+            <p><span className="font-mono text-emerald-700">{confirming.ticket.ticketId}</span> · {confirming.ticket.subject}</p>
+            <p className="flex flex-wrap items-center gap-2"><StatusPill status={confirming.ticket.status} label={formatTicketStatus(confirming.ticket.status)} /><ArrowRight size={14} aria-hidden="true" /><StatusPill status={confirming.status} label={formatTicketStatus(confirming.status)} /></p>
+            <p className="text-xs text-zinc-500">Perubahan ini tercatat dalam riwayat status dan audit, serta dapat dilihat pelapor.{isTicketClosed(confirming.status) ? " Percakapan pada tiket akan ditutup." : ""}</p>
+          </Description>}
+          <div className="mt-6 flex justify-end gap-2">
+            <button type="button" className="ui-btn" onClick={() => setConfirming(null)} autoFocus>Batal</button>
+            <button type="button" className="ui-btn ui-btn-primary" onClick={() => { const target = confirming; setConfirming(null); if (target) void changeStatus(target.ticket, target.status); }}>Ubah status</button>
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
   </DashboardShell>;
 }
