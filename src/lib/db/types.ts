@@ -277,78 +277,6 @@ export interface ZtnaAuditLogsTable {
   metadata: ColumnType<Record<string, unknown>, Record<string, unknown> | undefined, never>;
 }
 
-export interface ZtnaSessionsTable {
-  id: Generated<string>;
-  user_id: string;
-  device_fingerprint_hash: Buffer;
-  device_trust_score: Generated<number>;
-  network_zone: Generated<string>;
-  asn: ColumnType<number | null, number | null | undefined, never>;
-  user_agent_hash: ColumnType<Buffer | null, Buffer | null | undefined, never>;
-  ztna_risk_score: Generated<number>;
-  ztna_risk_factors: ColumnType<Record<string, unknown>, Record<string, unknown> | undefined, never>;
-  policy_id: Generated<string>;
-  decision: Generated<AuditDecision>;
-  mfa_verified: Generated<boolean>;
-  mfa_verified_at: NullableTimestamp;
-  step_up_required: Generated<boolean>;
-  revoked_at: NullableTimestamp;
-  revoked_reason: ColumnType<string | null, string | null | undefined, never>;
-  source_ip: ColumnType<string | null, string | null | undefined, never>;
-  source_ip_truncated: ColumnType<string | null, string | null | undefined, never>;
-  created_at: Timestamp;
-  last_seen_at: Timestamp;
-  expires_at: Timestamp;
-}
-
-export interface RefreshTokensTable {
-  id: Generated<string>;
-  user_id: string;
-  session_id: ColumnType<string | null, string | null | undefined, never>;
-  /** SHA-256 dari token. Token mentah hanya ada di sisi klien. */
-  token_hash: Buffer;
-  family_id: Generated<string>;
-  generation: Generated<number>;
-  replaced_by_id: ColumnType<string | null, string | null | undefined, never>;
-  scopes: Generated<string[]>;
-  issued_at: Timestamp;
-  expires_at: Timestamp;
-  used_at: NullableTimestamp;
-  revoked_at: NullableTimestamp;
-  revoked_reason: ColumnType<string | null, string | null | undefined, never>;
-  bound_ip_truncated: ColumnType<string | null, string | null | undefined, never>;
-  bound_device_hash: ColumnType<Buffer | null, Buffer | null | undefined, never>;
-  user_agent_hash: ColumnType<Buffer | null, Buffer | null | undefined, never>;
-}
-
-export interface MfaChallengesTable {
-  id: Generated<string>;
-  user_id: string;
-  session_id: ColumnType<string | null, string | null | undefined, never>;
-  challenge_hash: Buffer;
-  ztna_risk_score: Generated<number>;
-  risk_factors: ColumnType<Record<string, unknown>, Record<string, unknown> | undefined, never>;
-  source_ip: ColumnType<string | null, string | null | undefined, never>;
-  source_ip_truncated: ColumnType<string | null, string | null | undefined, never>;
-  device_fingerprint_hash: ColumnType<Buffer | null, Buffer | null | undefined, never>;
-  attempts: Generated<number>;
-  max_attempts: Generated<number>;
-  consumed_at: NullableTimestamp;
-  invalidated_at: NullableTimestamp;
-  invalidated_reason: ColumnType<string | null, string | null | undefined, never>;
-  created_at: Timestamp;
-  expires_at: Timestamp;
-}
-
-export interface AduanRateLimitsTable {
-  id: Generated<string>;
-  subject_hash: Buffer;
-  window_start: Timestamp;
-  window_end: Timestamp;
-  request_count: Generated<number>;
-  blocked_until: NullableTimestamp;
-}
-
 /**
  * Peta skema lengkap. Nama tabel adalah kunci; nilainya adalah interface baris.
  */
@@ -373,10 +301,6 @@ export interface Database {
   aduan_attachments: AduanAttachmentsTable;
   aduan_status_history: AduanStatusHistoryTable;
   ztna_audit_logs: ZtnaAuditLogsTable;
-  ztna_sessions: ZtnaSessionsTable;
-  refresh_tokens: RefreshTokensTable;
-  mfa_challenges: MfaChallengesTable;
-  aduan_rate_limits: AduanRateLimitsTable;
 }
 
 /* -------------------------------------------------------------------------- */

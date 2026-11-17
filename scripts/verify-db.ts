@@ -115,16 +115,31 @@ async function verifyStatic(db: Kysely<unknown>): Promise<void> {
     "aduan_status_history",
     "kek_versions",
     "ztna_audit_logs",
-    "ztna_sessions",
-    "refresh_tokens",
-    "mfa_challenges",
-    "aduan_rate_limits",
+    "aduan_replies",
+    "notification_reads",
+    "account_credentials",
+    "account_email_tokens",
+    "account_login_challenges",
+    "account_password_tokens",
+    "account_recovery_codes",
+    "admin_account_events",
+    "auth_rate_limits",
+    "auth_security_events",
+    "auth_mail_outbox",
     "schema_migrations",
   ];
 
+  // Tabel warisan yang dihapus 0047. Bila masih ada, migrasi belum diterapkan.
+  const droppedTables = ["ztna_sessions", "refresh_tokens", "mfa_challenges", "aduan_rate_limits"];
+
+  // pg_catalog, bukan information_schema: information_schema.tables hanya
+  // menampilkan tabel yang boleh diakses peran saat ini, sehingga tabel auth
+  // yang sengaja tidak di-grant ke runtime akan tampak "hilang".
   const tables = await sql<Row>`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public'
+    SELECT c.relname AS table_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
   `.execute(db);
   const existing = new Set(tables.rows.map((r) => String(r["table_name"])));
   const missing = expectedTables.filter((t) => !existing.has(t));
@@ -133,6 +148,13 @@ async function verifyStatic(db: Kysely<unknown>): Promise<void> {
     report("FAIL", "Tabel wajib ada", `hilang: ${missing.join(", ")}`);
   } else {
     report("PASS", "Tabel wajib ada", `${expectedTables.length} tabel terverifikasi`);
+  }
+
+  const lingering = droppedTables.filter((t) => existing.has(t));
+  if (lingering.length > 0) {
+    report("WARN", "Tabel warisan dihapus", `masih ada: ${lingering.join(", ")} (jalankan migrasi 0047)`);
+  } else {
+    report("PASS", "Tabel warisan dihapus", "tabel sesi/token/rate-limit lama sudah tidak ada");
   }
 
   const columns = await sql<Row>`
@@ -189,9 +211,18 @@ async function verifyStatic(db: Kysely<unknown>): Promise<void> {
     "users",
     "satgas_profiles",
     "ztna_audit_logs",
-    "ztna_sessions",
-    "refresh_tokens",
-    "mfa_challenges",
+    "aduan_replies",
+    "aduan_status_history",
+    "notification_reads",
+    "account_credentials",
+    "account_email_tokens",
+    "account_login_challenges",
+    "account_password_tokens",
+    "account_recovery_codes",
+    "admin_account_events",
+    "auth_rate_limits",
+    "auth_security_events",
+    "auth_mail_outbox",
   ];
   const rlsDisabled = sensitive.filter(
     (t) => !rls.rows.find((r) => r["table_name"] === t && r["enabled"] === true),
@@ -286,19 +317,15 @@ async function verifyStatic(db: Kysely<unknown>): Promise<void> {
     );
   }
 
-  // Peran pemeliharaan hanya boleh menghapus pada tabel operasional.
+  // Hak DELETE triase_maintenance hanya ada pada tabel retensi warisan, yang
+  // seluruhnya dihapus 0047. Hak DELETE apa pun yang tersisa berarti keluar jalur.
   const maintenanceGrants = await sql<Row>`
     SELECT table_name FROM information_schema.role_table_grants
     WHERE table_schema = 'public'
       AND grantee = 'triase_maintenance'
       AND privilege_type = 'DELETE'
   `.execute(db);
-  const allowedForMaintenance = new Set([
-    "ztna_sessions",
-    "refresh_tokens",
-    "mfa_challenges",
-    "aduan_rate_limits",
-  ]);
+  const allowedForMaintenance = new Set<string>();
   const overreach = maintenanceGrants.rows
     .map((r) => String(r["table_name"]))
     .filter((t) => !allowedForMaintenance.has(t));
@@ -306,11 +333,8 @@ async function verifyStatic(db: Kysely<unknown>): Promise<void> {
   if (overreach.length > 0) {
     report("FAIL", "Cakupan triase_maintenance", `keluar jalur: ${overreach.join(", ")}`);
   } else {
-report(
-    "PASS",
-    "Cakupan triase_maintenance",
-    `hanya ${maintenanceGrants.rows.length} tabel operasional (retensi)`,
-  );
+    report("PASS", "Cakupan triase_maintenance", "tidak memegang hak DELETE pada tabel mana pun");
+  }
 
   // ---- Isolasi KEK dari proses runtime -----------------------------------
   // Pemeriksaan paling penting di bagian ini. `key_material` adalah kunci
@@ -463,7 +487,6 @@ report(
     report("FAIL", "Kredensial tenaga - hanya Argon2id", "constraint masih menerima scrypt");
   } else {
     report("PASS", "Kredensial tenaga - hanya Argon2id", "constraint menolak semua algoritma lain");
-  }
   }
 
   const triggers = await sql<Row>`
@@ -1011,7 +1034,11 @@ async function verifyRlsBehaviour(pool: Pool): Promise<void> {
         "secure",
         async () => {
           await setActor(client, DUTY, "SATGAS", "");
-          const rows = await asApp(client, () => visibleAduan(client));
+          // Hanya nilai baris fixture: basis data dev/staging bisa memuat aduan
+          // sungguhan yang sah berada dalam kewenangan petugas probe.
+          const rows = (await asApp(client, () => visibleAduan(client))).filter((t) =>
+            t.startsWith("TRX-2026-VER"),
+          );
           const expected = ["TRX-2026-VER00001"];
           if (rows.length !== 1 || !rows.includes("TRX-2026-VER00001")) {
             throw new Error(
