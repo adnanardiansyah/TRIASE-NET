@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Dialog, DialogPanel, DialogTitle, Description } from "@headlessui/react";
 import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, FilePlus2, Inbox, LayoutGrid, List, Link2, Loader2, ShieldCheck, RefreshCw, Search, ShieldAlert, SlidersHorizontal, Ticket, X, type LucideIcon } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -29,7 +29,8 @@ const copy = {
 };
 const PAGE_SIZE = 8;
 function Metric({ label, value, note, icon: Icon, tone, href }: { label: string; value: string; note: string; icon: LucideIcon; tone: string; href: string }) {
-  return <Link href={href} className="metric dashboard-metric-link"><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-zinc-500">{label}</p><span className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}><Icon size={15} strokeWidth={1.7} /></span></div><p className="metric-value"><CountUp value={value} /></p><p className="mt-2 text-xs text-zinc-400">{note}</p></Link>;
+  const accent = /blue/.test(tone) ? "#3b82f6" : /amber/.test(tone) ? "#f59e0b" : /rose/.test(tone) ? "#f43f5e" : /violet/.test(tone) ? "#8b5cf6" : "#10b981";
+  return <Link href={href} className="metric dashboard-metric-link" style={{ "--accent": accent } as CSSProperties}><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-zinc-500">{label}</p><span className={`grid size-7 shrink-0 place-items-center rounded-md ${tone}`}><Icon size={15} strokeWidth={1.7} /></span></div><p className="metric-value"><CountUp value={value} /></p><p className="mt-2 text-xs text-zinc-400">{note}</p></Link>;
 }
 
 export function RoleDashboard({ role, section = "overview" }: { role: SessionRole; section?: DashboardSection }) {

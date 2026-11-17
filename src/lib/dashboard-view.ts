@@ -47,3 +47,81 @@ export function dailyTicketCounts(tickets: TicketMetadata[], now = new Date(), d
     return { label: dayFormat.format(day), date: key(day), count: counts.get(key(day)) ?? 0 };
   });
 }
+
+export type ActivityGranularity = "day" | "week" | "month";
+export interface ActivityBucket { key: string; label: string; title: string; count: number }
+export interface ActivitySeries { granularity: ActivityGranularity; buckets: ActivityBucket[]; total: number; peak: ActivityBucket | null; average: number; rangeLabel: string }
+
+const WIB_OFFSET = 7 * 3600000;
+const DAY_MS = 86400000;
+/** Indeks hari kalender WIB; `new Date(index * DAY_MS)` dibaca dengan zona UTC. */
+const wibDay = (ms: number) => Math.floor((ms + WIB_OFFSET) / DAY_MS);
+const weekStart = (day: number) => day - ((new Date(day * DAY_MS).getUTCDay() + 6) % 7);
+const utcFormat = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("id-ID", { timeZone: "UTC", ...options });
+const fmtDay = utcFormat({ day: "numeric", month: "short" });
+const fmtDayYear = utcFormat({ day: "numeric", month: "short", year: "numeric" });
+const fmtWeekday = utcFormat({ weekday: "short" });
+const fmtWeekdayFull = utcFormat({ weekday: "short", day: "numeric", month: "short", year: "numeric" });
+const fmtMonth = utcFormat({ month: "short", year: "2-digit" });
+const fmtMonthFull = utcFormat({ month: "long", year: "numeric" });
+const isoDay = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * Deret aktivitas pengajuan untuk grafik analitik (tanggal WIB).
+ *
+ * Periode 7/30/90 memakai bucket harian. "Seluruh waktu" (period kosong)
+ * dimulai dari aduan pertama, dengan satuan yang menyesuaikan rentang:
+ * harian sampai 31 hari, mingguan (Senin) sampai ~6 bulan, lalu bulanan.
+ */
+export function ticketActivitySeries(tickets: TicketMetadata[], now = new Date(), period = ""): ActivitySeries {
+  const today = wibDay(now.getTime());
+  const days = tickets.map((ticket) => Date.parse(ticket.createdAt)).filter(Number.isFinite).map(wibDay).filter((day) => day <= today);
+  const fixed = Number(period);
+  const earliest = days.length ? Math.min(...days) : today;
+  let granularity: ActivityGranularity = "day";
+  let start = today - 6;
+  if (fixed > 0) start = today - fixed + 1;
+  else if (days.length) {
+    const span = today - earliest + 1;
+    granularity = span <= 31 ? "day" : span <= 183 ? "week" : "month";
+    start = granularity === "day" ? Math.min(earliest, today - 6) : earliest;
+  }
+
+  const buckets: ActivityBucket[] = [];
+  const index = new Map<number, number>();
+  if (granularity === "day") {
+    const short = today - start + 1 <= 7;
+    for (let day = start; day <= today; day++) {
+      const date = new Date(day * DAY_MS);
+      index.set(day, buckets.length);
+      buckets.push({ key: isoDay(day), label: short ? fmtWeekday.format(date) : fmtDay.format(date), title: fmtWeekdayFull.format(date), count: 0 });
+    }
+  } else if (granularity === "week") {
+    for (let day = weekStart(start); day <= weekStart(today); day += 7) {
+      index.set(day, buckets.length);
+      buckets.push({ key: isoDay(day), label: fmtDay.format(new Date(day * DAY_MS)), title: `${fmtDay.format(new Date(day * DAY_MS))} – ${fmtDayYear.format(new Date((day + 6) * DAY_MS))}`, count: 0 });
+    }
+  } else {
+    const first = new Date(start * DAY_MS);
+    const last = new Date(today * DAY_MS);
+    for (let y = first.getUTCFullYear(), m = first.getUTCMonth(); y < last.getUTCFullYear() || (y === last.getUTCFullYear() && m <= last.getUTCMonth()); m === 11 ? (y++, m = 0) : m++) {
+      const date = new Date(Date.UTC(y, m, 1));
+      index.set(y * 12 + m, buckets.length);
+      buckets.push({ key: `${y}-${String(m + 1).padStart(2, "0")}`, label: fmtMonth.format(date), title: fmtMonthFull.format(date), count: 0 });
+    }
+  }
+
+  let total = 0;
+  for (const day of days) {
+    if (day < start) continue;
+    const date = new Date(day * DAY_MS);
+    const slot = granularity === "day" ? index.get(day) : granularity === "week" ? index.get(weekStart(day)) : index.get(date.getUTCFullYear() * 12 + date.getUTCMonth());
+    if (slot === undefined) continue;
+    buckets[slot]!.count++;
+    total++;
+  }
+  const peak = buckets.reduce<ActivityBucket | null>((best, bucket) => bucket.count > (best?.count ?? 0) ? bucket : best, null);
+  const unit = granularity === "day" ? "hari" : granularity === "week" ? "minggu" : "bulan";
+  const rangeLabel = fixed > 0 ? `${fixed} hari terakhir · per hari` : days.length ? `Sejak ${fmtDayYear.format(new Date(earliest * DAY_MS))} · per ${unit}` : "7 hari terakhir · per hari";
+  return { granularity, buckets, total, peak, average: buckets.length ? total / buckets.length : 0, rangeLabel };
+}

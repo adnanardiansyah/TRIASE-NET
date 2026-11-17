@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyTicketCounts, filterTickets, INITIAL_FILTERS, ticketCsv } from "./dashboard-view";
+import { dailyTicketCounts, filterTickets, INITIAL_FILTERS, ticketActivitySeries, ticketCsv } from "./dashboard-view";
 import { buildSlaSummary } from "./dashboard-aggregates";
 import type { TicketMetadata } from "./ticket-types";
 
@@ -44,5 +44,39 @@ describe("analytics period in Jakarta", () => {
   it("generates thirty and ninety date buckets for selectable ranges", () => {
     expect(dailyTicketCounts([], new Date("2026-10-18T10:00:00+07:00"), 30)).toHaveLength(30);
     expect(dailyTicketCounts([], new Date("2026-10-18T10:00:00+07:00"), 90)).toHaveLength(90);
+  });
+});
+
+describe("activity series", () => {
+  const at = (iso: string, id = iso) => ticket({ ticketId: id, createdAt: iso });
+  const now = new Date("2026-11-17T10:00:00+07:00");
+  it("covers every ticket from the first submission when no period is chosen", () => {
+    const rows = [at("2026-10-14T09:00:00+07:00"), at("2026-11-02T09:00:00+07:00"), at("2026-11-17T08:00:00+07:00")];
+    const series = ticketActivitySeries(rows, now, "");
+    expect(series.granularity).toBe("week");
+    expect(series.total).toBe(3);
+    expect(series.buckets[0]!.key).toBe("2026-10-12");
+    expect(series.rangeLabel).toContain("Sejak 14 Okt 2026");
+  });
+  it("uses daily buckets for short spans and pads to a week", () => {
+    const series = ticketActivitySeries([at("2026-11-16T23:30:00+07:00")], now, "");
+    expect(series.granularity).toBe("day");
+    expect(series.buckets).toHaveLength(7);
+    expect(series.buckets.at(-2)!.count).toBe(1);
+  });
+  it("switches to months for long spans without losing tickets", () => {
+    const rows = [at("2025-06-03T10:00:00+07:00", "a"), at("2025-06-30T23:59:00+07:00", "b"), at("2026-11-01T00:00:00+07:00", "c")];
+    const series = ticketActivitySeries(rows, now, "");
+    expect(series.granularity).toBe("month");
+    expect(series.buckets[0]).toMatchObject({ key: "2025-06", count: 2 });
+    expect(series.buckets.at(-1)).toMatchObject({ key: "2026-11", count: 1 });
+    expect(series.total).toBe(3);
+  });
+  it("keeps fixed periods daily and ignores invalid or future dates", () => {
+    const rows = [at("2026-11-10T10:00:00+07:00"), at("invalid", "x"), at("2026-12-01T10:00:00+07:00", "future")];
+    const series = ticketActivitySeries(rows, now, "30");
+    expect(series.buckets).toHaveLength(30);
+    expect(series.total).toBe(1);
+    expect(ticketActivitySeries([], now, "").buckets).toHaveLength(7);
   });
 });

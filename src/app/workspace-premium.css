@@ -223,3 +223,121 @@
   .dashboard-tab-indicator { transition: none; }
   .dashboard-row-flash [data-status-pill] { animation: none; }
 }
+
+/* ==========================================================================
+   Dashboard premium v2: panel, metrik, kontrol, grafik aktivitas, distribusi
+   ========================================================================== */
+.premium-workspace .dashboard-chart-panel { border-color: #dbe7df; border-radius: 22px; background: linear-gradient(180deg, #ffffff, #fbfdfc); box-shadow: 0 1px 0 #ffffff inset, 0 12px 32px -22px #0b3d2a4d; transition: box-shadow 250ms, border-color 250ms; }
+.premium-workspace .dashboard-chart-panel:hover { border-color: #cfe0d5; box-shadow: 0 1px 0 #ffffff inset, 0 20px 44px -26px #0b3d2a66; }
+.panel-title-with-icon { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.panel-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; color: #0f6b4b; background: linear-gradient(145deg, #eef7f2, #dcede3); box-shadow: inset 0 0 0 1px #d2e6da; }
+
+/* Metrik: garis aksen dan cahaya lembut sesuai warna ikon. */
+.premium-workspace .metric { overflow: hidden; }
+.premium-workspace .metric::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, var(--accent, #10b981), color-mix(in srgb, var(--accent, #10b981) 20%, transparent)); }
+.premium-workspace .metric::after { content: ""; position: absolute; right: -48px; top: -48px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent, #10b981) 13%, transparent), transparent 70%); pointer-events: none; }
+.premium-workspace .dashboard-metric-link { transition: transform 250ms cubic-bezier(.22, 1, .36, 1), border-color 250ms, box-shadow 250ms; }
+.premium-workspace .dashboard-metric-link:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent, #10b981) 35%, #d4e2d9); box-shadow: 0 18px 34px -24px color-mix(in srgb, var(--accent, #10b981) 70%, transparent); }
+
+/* Kontrol analitik dengan pilihan periode tersegmentasi. */
+.premium-workspace .dashboard-analysis-controls { gap: 16px 20px; padding: 20px 22px; border-color: #dbe7df; border-radius: 20px; background: linear-gradient(180deg, #ffffff, #f6faf7); box-shadow: 0 12px 30px -24px #0b3d2a4d; }
+.dashboard-analysis-controls > .analysis-period { flex: 2 1 330px; }
+.dashboard-analysis-controls > .analysis-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.segmented { display: flex; gap: 4px; padding: 4px; border: 1px solid #d8e6dd; border-radius: 12px; background: #eef5f1; }
+.segmented button { flex: 1; min-height: 38px; padding: 0 12px; border-radius: 9px; color: #5d7868; font-size: 12px; font-weight: 600; white-space: nowrap; transition: background-color 200ms, color 200ms, box-shadow 200ms; }
+.segmented button:hover { color: #0f5c41; }
+.segmented button[aria-pressed="true"] { background: #ffffff; color: #065f46; box-shadow: 0 1px 2px #0b3d2a1f, 0 0 0 1px #d2e6da; }
+.segmented button:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }
+
+/* Grafik aktivitas. */
+.activity-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 2px 0 18px; }
+.activity-stats > div { min-width: 0; padding: 14px 16px; border: 1px solid #e3ede7; border-radius: 14px; background: #f7fbf9; }
+.activity-stats dt { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #6b8173; }
+.activity-stats dd { margin-top: 6px; overflow: hidden; color: #173f2d; font-size: 24px; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.activity-stats dd span { font-size: 12px; font-weight: 500; letter-spacing: 0; color: #6b8173; }
+.activity-scroll { overflow-x: auto; }
+.activity-plot { position: relative; height: 270px; }
+.activity-panel.is-compact .activity-plot { height: 210px; }
+.activity-grid { position: absolute; inset: 48px 0 28px 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.activity-grid > div { position: relative; height: 0; border-top: 1px dashed #e1ebe5; }
+.activity-grid > div:last-child { border-top: 1px solid #d5e3da; }
+.activity-grid span { position: absolute; left: 0; top: -9px; padding-right: 6px; background: #fdfefd; color: #8aa294; font-size: 11px; font-variant-numeric: tabular-nums; }
+.activity-bars { position: absolute; inset: 0 0 0 30px; display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.activity-bars li { position: relative; flex: 1; min-width: 0; border-radius: 10px; outline: none; }
+.activity-bars li:focus-visible { box-shadow: inset 0 0 0 2px #04785740; }
+.activity-bar { position: absolute; left: 0; right: 0; bottom: 28px; width: min(34px, 66%); height: calc((100% - 76px) * var(--h)); min-height: 3px; margin-inline: auto; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, #5cc296, #1f7a54); box-shadow: 0 8px 16px -10px #1f7a54; transform-origin: bottom; animation: activity-grow 700ms cubic-bezier(.22, 1, .36, 1) both; animation-delay: calc(var(--i) * 18ms); transition: background 200ms; }
+.activity-bars li[data-empty] .activity-bar { height: 3px; background: #dfeae3; box-shadow: none; }
+.activity-bars li:hover .activity-bar, .activity-bars li:focus-visible .activity-bar { background: linear-gradient(180deg, #7ad6ad, #0f6b4b); }
+.activity-tip { position: absolute; left: 50%; top: 0; z-index: 2; display: grid; gap: 2px; padding: 7px 10px; border-radius: 10px; background: #0f2e22; color: #cfe8db; font-size: 11px; white-space: nowrap; box-shadow: 0 12px 24px -12px #000a; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity 150ms, transform 150ms; }
+.activity-tip strong { color: #ffffff; font-size: 12px; }
+.activity-bars li:hover .activity-tip, .activity-bars li:focus-visible .activity-tip { opacity: 1; transform: translate(-50%, 0); }
+.activity-bars li:nth-child(-n+2) .activity-tip { left: 0; transform: translate(0, 4px); }
+.activity-bars li:nth-child(-n+2):hover .activity-tip, .activity-bars li:nth-child(-n+2):focus-visible .activity-tip { transform: translate(0, 0); }
+.activity-bars li:nth-last-child(-n+2) .activity-tip { left: auto; right: 0; transform: translate(0, 4px); }
+.activity-bars li:nth-last-child(-n+2):hover .activity-tip, .activity-bars li:nth-last-child(-n+2):focus-visible .activity-tip { transform: translate(0, 0); }
+.activity-label { position: absolute; left: 50%; bottom: 0; color: #7c9486; font-size: 11px; white-space: nowrap; transform: translateX(-50%); }
+@keyframes activity-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* Cincin donat dan gauge. */
+.risk-layout, .sla-layout { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }
+.risk-donut, .sla-gauge { width: 148px; height: 148px; flex-shrink: 0; }
+.ring-track, .ring-segment { fill: none; stroke-width: 14; transform: rotate(-90deg); transform-origin: 66px 66px; }
+.ring-track { stroke: #ebf2ee; }
+.ring-segment { animation: ring-in 900ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes ring-in { from { stroke-dasharray: 0 999; } }
+.ring-value { fill: #173f2d; font-size: 26px; font-weight: 650; letter-spacing: -.03em; text-anchor: middle; dominant-baseline: middle; }
+.ring-caption { fill: #6b8173; font-size: 10px; letter-spacing: .12em; text-anchor: middle; text-transform: uppercase; }
+.risk-legend { display: grid; flex: 1; gap: 4px; min-width: 200px; list-style: none; }
+.risk-legend a { display: grid; grid-template-columns: 1fr auto 28px 14px; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; color: #38594a; font-size: 13px; transition: background-color 180ms; }
+.legend-name { display: inline-flex; align-items: center; gap: 10px; }
+.legend-dot { display: inline-block; width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%; box-shadow: 0 0 0 3px #ffffff, 0 0 0 4px #e3ece6; }
+.legend-pct { color: #7b9385; font-size: 12px; font-variant-numeric: tabular-nums; }
+.risk-legend strong { color: #173f2d; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; }
+.risk-legend svg, .rank-list a > svg { color: #9db3a6; }
+
+/* Daftar peringkat kategori dan meter status. */
+.rank-list, .status-meters { display: grid; gap: 2px; list-style: none; }
+.rank-list a { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 12px; transition: background-color 180ms; }
+.status-meters a { display: grid; gap: 9px; padding: 11px 12px; border-radius: 12px; transition: background-color 180ms; }
+.risk-legend a:hover, .rank-list a:hover, .status-meters a:hover { background: #f1f7f3; }
+.rank-no { width: 20px; flex-shrink: 0; color: #8aa294; font-family: ui-monospace, monospace; font-size: 11px; }
+.rank-body { display: grid; flex: 1; gap: 9px; min-width: 0; }
+.rank-head { display: flex; justify-content: space-between; gap: 12px; color: #38594a; font-size: 13px; }
+.rank-head strong { color: #1f4634; font-weight: 600; }
+.rank-head > span:last-child { color: #7b9385; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.status-meters .rank-head > span:last-child strong { color: #173f2d; }
+.meter { display: block; height: 8px; overflow: hidden; border-radius: 99px; background: #edf3ef; }
+.meter > span { display: block; width: var(--w); height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 65%, #ffffff), var(--c)); transform-origin: left; animation: meter-in 800ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes meter-in { from { transform: scaleX(0); } }
+
+/* Target penanganan. */
+.sla-facts { display: grid; flex: 1; gap: 8px; min-width: 200px; }
+.sla-facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px solid #e6efe9; border-radius: 12px; background: #f6faf8; color: #4a6a5a; font-size: 13px; }
+.sla-facts dd { color: #173f2d; font-weight: 650; font-variant-numeric: tabular-nums; }
+.premium-workspace .dashboard-overdue-link { margin-top: 18px; }
+.dashboard-overdue-link[data-clear] { border-color: #d3e7da; background: #f1f8f4; color: #2f6b4c; }
+
+/* Ringkasan: tren lebar penuh dan aksen risiko pada daftar prioritas. */
+.dashboard-overview-wide { grid-column: 1 / -1; }
+.dashboard-summary-list li { position: relative; }
+.dashboard-summary-list li[data-risk] a { padding-left: 18px; padding-right: 10px; border-radius: 12px; transition: background-color 180ms; }
+.dashboard-summary-list li[data-risk] a:hover { background: #f6faf8; }
+.dashboard-summary-list li[data-risk]::before { content: ""; position: absolute; left: 0; top: 20px; bottom: 20px; width: 3px; border-radius: 3px; background: #4fae86; }
+.dashboard-summary-list li[data-risk="HIGH"]::before { background: #e07a7a; }
+.dashboard-summary-list li[data-risk="MEDIUM"]::before { background: #ddb057; }
+
+@media (max-width: 640px) {
+  .activity-stats { gap: 8px; }
+  .activity-stats > div { padding: 12px; }
+  .activity-stats dd { font-size: 18px; }
+  .activity-stats dd { white-space: normal; }
+  .activity-stats dd span { display: block; margin-top: 2px; line-height: 1.4; }
+  .activity-plot { height: 230px; }
+  .segmented button { padding: 0 6px; }
+  .risk-layout, .sla-layout { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-bar, .ring-segment, .meter > span { animation: none; }
+  .activity-tip, .segmented button, .premium-workspace .dashboard-metric-link, .premium-workspace .dashboard-chart-panel { transition: none; }
+  .premium-workspace .dashboard-metric-link:hover { transform: none; }
+}
