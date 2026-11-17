@@ -131,13 +131,19 @@ html:has(.landing-page) { scroll-behavior: smooth; scroll-padding-top: 0; }
 .landing-page .eyebrow { letter-spacing: .14em; font-size: 10px; }
 .landing-scroll { bottom: calc(var(--hero-wave-height) + 16px); }
 .landing-hero { position: relative; overflow: hidden; isolation: isolate; min-height: 100svh; display: flex; align-items: center; background-color: #163c2d; color: white; }
-.landing-hero-photo { z-index: 0; object-fit: cover; object-position: center 62%; pointer-events: none; }
+.landing-hero-media { position: absolute; inset: 0; z-index: 0; will-change: transform; }
+.landing-hero-photo { z-index: 0; object-fit: cover; object-position: center 62%; pointer-events: none; transform-origin: center 62%; animation: landing-hero-kenburns 2.6s cubic-bezier(.22, 1, .36, 1) both; }
+.landing-title-word { display: inline-block; }
+/* `* { letter-spacing: 0 }` di atas me-reset span; kata biasa mewarisi spasi rapat judul, aksen serif tetap 0 seperti sebelumnya. */
+.landing-title-word:not(.landing-title-accent) { letter-spacing: inherit; }
+@keyframes landing-hero-kenburns { from { transform: scale(1.08); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .landing-hero-photo { animation: none; } }
 .landing-hero::before { content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5, 27, 23, .94) 0%, rgba(5, 27, 23, .8) 30%, rgba(5, 27, 23, .32) 62%, rgba(5, 27, 23, .08) 100%); }
 .landing-hero::after { content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 65% 42%, transparent 35%, rgba(2, 22, 15, .18) 100%), linear-gradient(0deg, rgba(3, 30, 21, .22), transparent 24%); }
 .landing-hero-content { position: relative; z-index: 2; width: 100%; max-width: 1200px; margin: 0 auto; padding: calc(150px + env(safe-area-inset-top, 0px)) 32px calc(var(--hero-wave-height) + 70px); }
 .landing-wordmark { margin-bottom: 20px; font-size: 11px; color: #d4ddd5; letter-spacing: .08em; }
 .landing-hero-sequence > p:first-child { color: #e7d3a8; letter-spacing: .18em; font-size: 10px; }
-.landing-title span { color: #ead7ae; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 400; }
+.landing-title .landing-title-accent { color: #ead7ae; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 400; }
 .landing-photo-caption { position: absolute; right: max(32px, calc((100vw - 1136px) / 2)); bottom: calc(var(--hero-wave-height) + 70px); z-index: 2; display: flex; align-items: center; gap: 16px; font-size: 12px; line-height: 1.8; color: #ffffffcf; }
 .landing-photo-caption strong { font-weight: 500; color: #fff; }
 .landing-caption-line { width: 42px; height: 1px; background: #e7d3a8; }

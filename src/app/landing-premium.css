@@ -18,6 +18,21 @@
 .landing-privacy-tag { position: absolute; display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; background: #fff; border: 1px solid #d1e3d8; border-radius: 100px; color: #33674c; font-size: 10px; box-shadow: 0 6px 14px #064e3b0a; }
 .landing-privacy-tag-one { top: 36px; left: 24px; }
 .landing-privacy-tag-two { bottom: 30px; right: 20px; }
+/* Ilustrasi privasi: gerak pelan dan berulang, hanya pada elemen dekoratif. */
+.landing-privacy-ring { animation: landing-privacy-orbit 48s linear infinite; }
+.landing-privacy-ring::after { content: ""; position: absolute; top: -4px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: #2c7c5e; box-shadow: 0 0 0 4px #2c7c5e1f; }
+.landing-privacy-ring-inner { animation-duration: 34s; animation-direction: reverse; }
+.landing-privacy-ring-inner::after { width: 5px; height: 5px; margin-left: -2.5px; top: -3px; background: #6fa58a; box-shadow: none; }
+.landing-privacy-shield { position: relative; }
+.landing-privacy-shield::before { content: ""; position: absolute; inset: -6px; border-radius: 30px 30px 46px 46px; border: 1px solid #2c7c5e66; animation: landing-privacy-pulse 3.4s cubic-bezier(.22, 1, .36, 1) infinite; pointer-events: none; }
+.landing-privacy-tag { animation: landing-privacy-float 5.6s ease-in-out infinite alternate; }
+.landing-privacy-tag-two { animation-delay: -2.8s; }
+@keyframes landing-privacy-orbit { to { transform: rotate(360deg); } }
+@keyframes landing-privacy-pulse { 0% { opacity: .9; transform: scale(.96); } 70%, 100% { opacity: 0; transform: scale(1.22); } }
+@keyframes landing-privacy-float { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -6px, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .landing-privacy-ring, .landing-privacy-shield::before, .landing-privacy-tag { animation: none; }
+}
 .landing-privacy-bottom { border-top: 1px solid #c9ddd080; font-size: 11px; }
 .landing-privacy-bottom strong { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .landing-privacy-cards { display: grid; gap: 16px; align-content: center; }
