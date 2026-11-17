@@ -2,15 +2,15 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
-const projectRoot = fileURLToPath(new URL(".", import.meta.url));
+const projectRoot = fileURLToPath(new URL(".", import.meta.url)).replace(/[\\/]$/, "");
 
 export default defineConfig({
   resolve: {
     alias: {
-      "server-only": projectRoot.replace(/[\\/]$/, "") + "/node_modules/next/dist/compiled/server-only/empty.js",
+      "server-only": projectRoot + "/node_modules/next/dist/compiled/server-only/empty.js",
       // `next dev` memetakan prefix itu sendiri lewat tsconfig `paths`, jadi alias
-    // harus dideklarasikan ulang di sini.
-      "@": projectRoot.replace(/[\\/]$/, "") + "/src",
+      // harus dideklarasikan ulang di sini.
+      "@": projectRoot + "/src",
     },
   },
   test: {
